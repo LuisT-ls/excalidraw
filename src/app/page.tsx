@@ -1,0 +1,19 @@
+import { Canvas } from "@/components/whiteboard/Canvas";
+import { Menu } from "@/components/whiteboard/Menu";
+import { Toolbar } from "@/components/whiteboard/Toolbar";
+
+export default function HomePage() {
+  return (
+    <main className="relative h-screen w-screen overflow-hidden bg-[#fafaf9]">
+      <Canvas />
+      <div className="absolute left-4 top-4 z-20">
+        <Menu />
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 top-4 z-10 flex justify-center px-4">
+        <div className="pointer-events-auto">
+          <Toolbar />
+        </div>
+      </div>
+    </main>
+  );
+}
