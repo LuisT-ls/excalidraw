@@ -1,13 +1,14 @@
 "use client";
 
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
-import { saveScene } from "@/features/editor/persistence/sceneStorage";
+import { saveBoardScene } from "@/features/editor/persistence/boardStorage";
 
 export function SharedSceneBanner() {
   const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const elements = useWhiteboardStore((state) => state.elements);
   const backgroundColor = useWhiteboardStore((state) => state.backgroundColor);
   const viewport = useWhiteboardStore((state) => state.viewport);
+  const currentBoardId = useWhiteboardStore((state) => state.currentBoardId);
   const setReadOnly = useWhiteboardStore((state) => state.setReadOnly);
   const setActiveTool = useWhiteboardStore((state) => state.setActiveTool);
 
@@ -16,13 +17,15 @@ export function SharedSceneBanner() {
   }
 
   const duplicateToMyBoard = () => {
-    saveScene({
-      type: "whiteboard-scene",
-      version: 1,
-      elements,
-      backgroundColor,
-      viewport,
-    });
+    if (currentBoardId) {
+      saveBoardScene(currentBoardId, {
+        type: "whiteboard-scene",
+        version: 1,
+        elements,
+        backgroundColor,
+        viewport,
+      });
+    }
     setReadOnly(false);
     setActiveTool("select");
 

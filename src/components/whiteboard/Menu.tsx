@@ -11,10 +11,26 @@ import {
   ChevronUp,
   Monitor,
   Moon,
+  Pencil,
+  Plus,
   Sun,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
-import { parseScene, removeSavedScene } from "@/features/editor/persistence/sceneStorage";
+import { parseScene } from "@/features/editor/persistence/sceneStorage";
+import {
+  createBoard,
+  DEFAULT_BOARD_BACKGROUND,
+  DEFAULT_BOARD_VIEWPORT,
+  deleteBoard,
+  duplicateBoard,
+  getMostRecentlyUpdatedBoard,
+  loadBoardScene,
+  renameBoard,
+  saveBoardScene,
+  saveCurrentBoardId,
+  type BoardMetadata,
+} from "@/features/editor/persistence/boardStorage";
 import {
   exportSceneAsJson,
   exportSceneAsPng,
@@ -83,15 +99,26 @@ export function Menu({ onEnterPresentation }: MenuProps) {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [customColor, setCustomColor] = useState("");
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
+  const [editingBoardName, setEditingBoardName] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
   const elements = useWhiteboardStore((state) => state.elements);
+  const boards = useWhiteboardStore((state) => state.boards);
+  const currentBoardId = useWhiteboardStore((state) => state.currentBoardId);
+  const viewport = useWhiteboardStore((state) => state.viewport);
   const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const backgroundColor = useWhiteboardStore(
     (state) => state.backgroundColor,
   );
   const setElements = useWhiteboardStore((state) => state.setElements);
+  const setBoards = useWhiteboardStore((state) => state.setBoards);
+  const setCurrentBoardId = useWhiteboardStore(
+    (state) => state.setCurrentBoardId,
+  );
+  const setViewport = useWhiteboardStore((state) => state.setViewport);
+  const resetHistory = useWhiteboardStore((state) => state.resetHistory);
   const setBackgroundColor = useWhiteboardStore(
     (state) => state.setBackgroundColor,
   );
@@ -106,6 +133,7 @@ export function Menu({ onEnterPresentation }: MenuProps) {
   const closeMenu = () => {
     setIsOpen(false);
     setIsExportMenuOpen(false);
+    setEditingBoardId(null);
   };
 
   const toggleMenu = () => {
@@ -164,7 +192,150 @@ export function Menu({ onEnterPresentation }: MenuProps) {
 
     setElements([]);
     setSelectedElementIds([]);
-    removeSavedScene();
+  };
+
+  const persistCurrentBoard = () => {
+    if (!currentBoardId) {
+      return;
+    }
+
+    saveBoardScene(currentBoardId, {
+      type: "whiteboard-scene",
+      version: 1,
+      elements,
+      viewport,
+      backgroundColor,
+    });
+  };
+
+  const applyBoardScene = (
+    boardId: string,
+    scene: ReturnType<typeof loadBoardScene>,
+  ) => {
+    if (!scene) {
+      return;
+    }
+
+    setCurrentBoardId(boardId);
+    saveCurrentBoardId(boardId);
+    setElements(scene.elements);
+    setViewport(scene.viewport ?? DEFAULT_BOARD_VIEWPORT);
+    setBackgroundColor(scene.backgroundColor ?? DEFAULT_BOARD_BACKGROUND);
+    setSelectedElementIds([]);
+    resetHistory();
+  };
+
+  const switchBoard = (board: BoardMetadata) => {
+    if (isReadOnly || board.id === currentBoardId) {
+      closeMenu();
+      return;
+    }
+
+    persistCurrentBoard();
+    applyBoardScene(board.id, loadBoardScene(board.id));
+    closeMenu();
+  };
+
+  const nextUntitledBoardName = () => {
+    const baseName = "Quadro sem título";
+    const names = new Set(boards.map((board) => board.name));
+
+    if (!names.has(baseName)) {
+      return baseName;
+    }
+
+    let suffix = 2;
+    while (names.has(`${baseName} ${suffix}`)) {
+      suffix += 1;
+    }
+
+    return `${baseName} ${suffix}`;
+  };
+
+  const createNewBoard = () => {
+    if (isReadOnly) {
+      return;
+    }
+
+    persistCurrentBoard();
+    const created = createBoard(nextUntitledBoardName());
+    setBoards([...boards, created.metadata]);
+    applyBoardScene(created.metadata.id, created.scene);
+    closeMenu();
+  };
+
+  const startRenamingBoard = (board: BoardMetadata) => {
+    if (isReadOnly) {
+      return;
+    }
+
+    setEditingBoardId(board.id);
+    setEditingBoardName(board.name);
+  };
+
+  const finishRenamingBoard = () => {
+    if (!editingBoardId) {
+      return;
+    }
+
+    const nextBoards = renameBoard(editingBoardId, editingBoardName);
+    setBoards(nextBoards);
+    setEditingBoardId(null);
+  };
+
+  const duplicateBoardFromMenu = (board: BoardMetadata) => {
+    if (isReadOnly) {
+      return;
+    }
+
+    persistCurrentBoard();
+    const duplicated = duplicateBoard(board.id);
+    if (!duplicated) {
+      return;
+    }
+
+    setBoards([...boards, duplicated.metadata]);
+    applyBoardScene(duplicated.metadata.id, duplicated.scene);
+    closeMenu();
+  };
+
+  const deleteBoardFromMenu = async (board: BoardMetadata) => {
+    if (isReadOnly) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: `Excluir “${board.name}”?`,
+      description: "O quadro e todo o conteúdo salvo nele serão removidos. Essa ação não pode ser desfeita.",
+      confirmLabel: "Excluir quadro",
+      variant: "destructive",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    const wasActive = board.id === currentBoardId;
+    if (wasActive) {
+      persistCurrentBoard();
+    }
+
+    let nextBoards = deleteBoard(board.id);
+    if (nextBoards.length === 0) {
+      const created = createBoard();
+      nextBoards = [created.metadata];
+      setBoards(nextBoards);
+      applyBoardScene(created.metadata.id, created.scene);
+    } else {
+      setBoards(nextBoards);
+
+      if (wasActive) {
+        const nextBoard = getMostRecentlyUpdatedBoard(nextBoards)!;
+        applyBoardScene(nextBoard.id, loadBoardScene(nextBoard.id));
+      }
+    }
+
+    closeMenu();
   };
 
   const shareScene = async () => {
@@ -356,8 +527,112 @@ export function Menu({ onEnterPresentation }: MenuProps) {
           <div
             role="menu"
             aria-label="Menu principal"
-            className="absolute left-0 top-12 z-30 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900"
+            className="absolute left-0 top-12 z-30 w-80 rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900"
           >
+            <section className="mb-2 rounded-lg bg-slate-50 p-2 dark:bg-slate-800/70">
+              <div className="mb-1 flex items-center justify-between px-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Quadros
+                </p>
+                <button
+                  type="button"
+                  aria-label="Novo quadro"
+                  title="Novo quadro"
+                  disabled={isReadOnly}
+                  onClick={createNewBoard}
+                  className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+                >
+                  <Plus size={16} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="max-h-44 space-y-1 overflow-y-auto">
+                {boards.map((board) => {
+                  const isCurrent = board.id === currentBoardId;
+                  const isEditing = board.id === editingBoardId;
+
+                  return (
+                    <div
+                      key={board.id}
+                      className={
+                        isCurrent
+                          ? "flex items-center gap-1 rounded-md bg-slate-200 px-1 dark:bg-slate-700"
+                          : "flex items-center gap-1 rounded-md px-1 hover:bg-slate-100 dark:hover:bg-slate-700/60"
+                      }
+                    >
+                      {isEditing ? (
+                        <input
+                          autoFocus
+                          value={editingBoardName}
+                          onChange={(event) => setEditingBoardName(event.target.value)}
+                          onBlur={finishRenamingBoard}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              finishRenamingBoard();
+                            }
+                            if (event.key === "Escape") {
+                              setEditingBoardId(null);
+                            }
+                          }}
+                          className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-1.5 py-1 text-sm text-slate-800 outline-none focus:border-blue-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                          aria-label={`Renomear ${board.name}`}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isReadOnly}
+                          onClick={() => switchBoard(board)}
+                          onDoubleClick={() => startRenamingBoard(board)}
+                          className="min-w-0 flex-1 truncate px-1.5 py-1.5 text-left text-sm text-slate-700 disabled:cursor-not-allowed dark:text-slate-200"
+                          title={`${board.name} — duplo clique para renomear`}
+                        >
+                          {board.name}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        aria-label={`Renomear ${board.name}`}
+                        title="Renomear"
+                        disabled={isReadOnly || isEditing}
+                        onClick={() => startRenamingBoard(board)}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                      >
+                        <Pencil size={13} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Duplicar ${board.name}`}
+                        title="Duplicar"
+                        disabled={isReadOnly}
+                        onClick={() => duplicateBoardFromMenu(board)}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                      >
+                        <span aria-hidden="true" className="text-xs">⧉</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Excluir ${board.name}`}
+                        title="Excluir"
+                        disabled={isReadOnly}
+                        onClick={() => void deleteBoardFromMenu(board)}
+                        className="rounded p-1 text-slate-400 hover:bg-red-100 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/50 dark:hover:text-red-300"
+                      >
+                        <Trash2 size={13} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                disabled={isReadOnly}
+                onClick={createNewBoard}
+                className="mt-2 flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-blue-300 dark:hover:bg-blue-950/50"
+              >
+                <Plus size={14} aria-hidden="true" />
+                Novo quadro
+              </button>
+            </section>
             <ActionMenuItem
               onClick={() => importInputRef.current?.click()}
               disabled={isReadOnly}

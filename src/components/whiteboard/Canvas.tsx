@@ -64,10 +64,9 @@ import {
   type EditorStyle,
 } from "@/features/editor/store/useWhiteboardStore";
 import {
-  loadScene,
-  removeSavedScene,
-  saveScene,
-} from "@/features/editor/persistence/sceneStorage";
+  initializeBoards,
+  saveBoardScene,
+} from "@/features/editor/persistence/boardStorage";
 import { loadSharedSceneFromLocation } from "@/features/editor/persistence/shareLink";
 import { getSceneBounds } from "@/features/editor/interaction/sceneBounds";
 import {
@@ -254,6 +253,11 @@ export function Canvas({
   const setSelectedElementIds = useWhiteboardStore(
     (state) => state.setSelectedElementIds,
   );
+  const setBoards = useWhiteboardStore((state) => state.setBoards);
+  const setCurrentBoardId = useWhiteboardStore(
+    (state) => state.setCurrentBoardId,
+  );
+  const resetHistory = useWhiteboardStore((state) => state.resetHistory);
   const setViewport = useWhiteboardStore((state) => state.setViewport);
   const setElements = useWhiteboardStore((state) => state.setElements);
   const setBackgroundColor = useWhiteboardStore(
@@ -387,6 +391,10 @@ export function Canvas({
     };
 
     const loadInitialScene = async () => {
+      const initializedBoards = initializeBoards();
+      setBoards(initializedBoards.boards);
+      setCurrentBoardId(initializedBoards.currentBoardId);
+
       const shared = await loadSharedSceneFromLocation();
 
       if (disposed) {
@@ -410,17 +418,16 @@ export function Canvas({
           window.alert("O link compartilhado é inválido ou está corrompido.");
         }
 
-        const persistedScene = loadScene();
-
-        if (persistedScene) {
-          setElements(persistedScene.elements);
-          if (persistedScene.viewport) {
-            setViewport(persistedScene.viewport);
-          }
-          if (persistedScene.backgroundColor) {
-            setBackgroundColor(persistedScene.backgroundColor);
-          }
+        setElements(initializedBoards.scene.elements);
+        if (initializedBoards.scene.viewport) {
+          setViewport(initializedBoards.scene.viewport);
         }
+        if (initializedBoards.scene.backgroundColor) {
+          setBackgroundColor(initializedBoards.scene.backgroundColor);
+        }
+        setSelectedElementIds([]);
+        resetHistory();
+        setReadOnly(false);
       }
     };
 
@@ -441,13 +448,8 @@ export function Canvas({
           return;
         }
 
-        if (
-          state.elements.length === 0 &&
-          state.backgroundColor === DEFAULT_BACKGROUND_COLOR
-        ) {
-          removeSavedScene();
-        } else {
-          saveScene({
+        if (state.currentBoardId) {
+          saveBoardScene(state.currentBoardId, {
             type: "whiteboard-scene",
             version: 1,
             elements: state.elements,
@@ -481,6 +483,9 @@ export function Canvas({
     };
   }, [
     setBackgroundColor,
+    resetHistory,
+    setBoards,
+    setCurrentBoardId,
     setElements,
     setReadOnly,
     setSelectedElementIds,

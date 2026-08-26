@@ -13,6 +13,7 @@ import {
   moveElementsByOneLayer,
   reorderElements,
 } from "../interaction/elementActions";
+import type { BoardMetadata } from "../persistence/boardStorage";
 
 export interface EditorStyle {
   strokeColor: string;
@@ -27,6 +28,8 @@ export interface EditorStyle {
 
 export interface WhiteboardState {
   elements: SceneElement[];
+  boards: BoardMetadata[];
+  currentBoardId: string | null;
   selectedElementIds: ElementId[];
   activeTool: Tool;
   isReadOnly: boolean;
@@ -36,6 +39,8 @@ export interface WhiteboardState {
   viewport: Viewport;
 
   setElements: (elements: SceneElement[]) => void;
+  setBoards: (boards: BoardMetadata[]) => void;
+  setCurrentBoardId: (id: string | null) => void;
   addElement: (element: SceneElement) => void;
   updateElement: (id: ElementId, updates: Partial<SceneElement>) => void;
   removeElement: (id: ElementId) => void;
@@ -55,6 +60,7 @@ export interface WhiteboardState {
   setViewport: (
     viewport: Viewport | ((current: Viewport) => Viewport),
   ) => void;
+  resetHistory: () => void;
   commitHistoryEntry: () => void;
   pastStates: SceneElement[][];
   futureStates: SceneElement[][];
@@ -86,6 +92,8 @@ export const DEFAULT_BACKGROUND_COLOR = "#fafaf9";
 
 export const useWhiteboardStore = create<WhiteboardState>((set) => ({
   elements: [],
+  boards: [],
+  currentBoardId: null,
   selectedElementIds: [],
   activeTool: "select",
   isReadOnly: false,
@@ -97,6 +105,8 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
   futureStates: [],
 
   setElements: (elements) => set({ elements: cloneSceneElements(elements) }),
+  setBoards: (boards) => set({ boards: boards.map((board) => ({ ...board })) }),
+  setCurrentBoardId: (currentBoardId) => set({ currentBoardId }),
 
   addElement: (element) =>
     set((state) => ({
@@ -179,6 +189,8 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
       viewport:
         typeof viewport === "function" ? viewport(state.viewport) : viewport,
     })),
+
+  resetHistory: () => set({ pastStates: [], futureStates: [] }),
 
   commitHistoryEntry: () =>
     set((state) => ({
