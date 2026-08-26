@@ -28,6 +28,10 @@ import {
   ActionMenuItem,
 } from "@/components/ui/ActionMenu";
 
+interface MenuProps {
+  onEnterPresentation: () => void;
+}
+
 const BACKGROUND_PRESETS = [
   { label: "Branco", value: "#ffffff" },
   { label: "Cinza claro", value: "#f1f5f9" },
@@ -65,7 +69,7 @@ const THEME_OPTIONS: Array<{
   { value: "system", label: "Sistema", icon: Monitor },
 ];
 
-export function Menu() {
+export function Menu({ onEnterPresentation }: MenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [customColor, setCustomColor] = useState("");
@@ -303,6 +307,11 @@ export function Menu() {
     closeMenu();
   };
 
+  const openPresentationMode = () => {
+    closeMenu();
+    onEnterPresentation();
+  };
+
   return (
     <>
       <div ref={menuRef} className="relative">
@@ -358,6 +367,9 @@ export function Menu() {
               onClick={openShortcuts}
             >
               Atalhos de teclado
+            </ActionMenuItem>
+            <ActionMenuItem onClick={openPresentationMode}>
+              Modo apresentação
             </ActionMenuItem>
 
             <ActionMenuDivider />
