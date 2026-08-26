@@ -944,8 +944,15 @@ export function Canvas({
     }
 
     if (textEditingRef.current) {
-      event.preventDefault();
-      return;
+      // O textarea fica sobre o canvas e pode manter o foco durante o próximo
+      // gesto. Forçamos o blur antes de processar o pointerdown para que um
+      // editor vazio seja cancelado e o clique atual possa iniciar outro gesto.
+      textInputRef.current?.blur();
+
+      if (textEditingRef.current) {
+        event.preventDefault();
+        return;
+      }
     }
 
     const capturePointer = () => {
@@ -1729,7 +1736,7 @@ export function Canvas({
             }
           }}
           onBlur={() => finishTextEditing(true)}
-          className="absolute z-20 box-border resize-none overflow-hidden whitespace-pre rounded border border-slate-300 bg-white/90 px-1 outline-none transition-[width,height] duration-75 focus:border-slate-400 focus:ring-1 focus:ring-slate-300 dark:border-slate-600 dark:bg-slate-900/90 dark:focus:border-slate-300 dark:focus:ring-slate-600"
+          className="pointer-events-none absolute z-20 box-border resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 outline-none shadow-none transition-[width,height] duration-75 focus:border-0 focus:bg-transparent focus:ring-0 dark:bg-transparent dark:focus:bg-transparent"
           style={{
             left: textEditing.screenPoint.x,
             top: textEditing.screenPoint.y,
