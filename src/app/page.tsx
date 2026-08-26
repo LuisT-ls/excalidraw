@@ -4,7 +4,7 @@ import { Toolbar } from "@/components/whiteboard/Toolbar";
 
 export default function HomePage() {
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-[#fafaf9]">
+    <main className="relative h-screen w-screen overflow-hidden bg-[#fafaf9] dark:bg-slate-950">
       <Canvas />
       <div className="absolute left-4 top-4 z-20">
         <Menu />

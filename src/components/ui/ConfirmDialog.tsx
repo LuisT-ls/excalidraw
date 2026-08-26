@@ -97,7 +97,7 @@ function ConfirmDialogView({ request, onResolve }: ConfirmDialogViewProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[1px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[1px] dark:bg-black/60"
       role="presentation"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) {
@@ -111,12 +111,12 @@ function ConfirmDialogView({ request, onResolve }: ConfirmDialogViewProps) {
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
-        className="motion-safe:animate-[confirm-dialog-in_160ms_ease-out] w-full max-w-md rounded-[19px_23px_21px_25px] border-2 border-slate-800 bg-[#fffefa] p-6 shadow-2xl"
+        className="motion-safe:animate-[confirm-dialog-in_160ms_ease-out] w-full max-w-md rounded-[19px_23px_21px_25px] border-2 border-slate-800 bg-[#fffefa] p-6 shadow-2xl dark:border-slate-300 dark:bg-slate-900"
       >
-        <h2 id="confirm-dialog-title" className="text-lg font-semibold text-slate-900">
+        <h2 id="confirm-dialog-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           {request.title}
         </h2>
-        <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-slate-600">
+        <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
           {request.description}
         </p>
         <div className="mt-6 flex justify-end gap-2">
@@ -124,7 +124,7 @@ function ConfirmDialogView({ request, onResolve }: ConfirmDialogViewProps) {
             ref={cancelButtonRef}
             type="button"
             onClick={() => onResolve(false)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             {request.cancelLabel}
           </button>
@@ -135,7 +135,7 @@ function ConfirmDialogView({ request, onResolve }: ConfirmDialogViewProps) {
             className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               isDestructive
                 ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                : "bg-slate-800 hover:bg-slate-900 focus:ring-slate-500"
+                : "bg-slate-800 hover:bg-slate-900 focus:ring-slate-500 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
             }`}
           >
             {request.confirmLabel}

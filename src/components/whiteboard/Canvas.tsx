@@ -1729,7 +1729,7 @@ export function Canvas({
             }
           }}
           onBlur={() => finishTextEditing(true)}
-          className="absolute z-20 box-border resize-none overflow-hidden whitespace-pre rounded border border-slate-300 bg-white/90 px-1 outline-none transition-[width,height] duration-75 focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
+          className="absolute z-20 box-border resize-none overflow-hidden whitespace-pre rounded border border-slate-300 bg-white/90 px-1 outline-none transition-[width,height] duration-75 focus:border-slate-400 focus:ring-1 focus:ring-slate-300 dark:border-slate-600 dark:bg-slate-900/90 dark:focus:border-slate-300 dark:focus:ring-slate-600"
           style={{
             left: textEditing.screenPoint.x,
             top: textEditing.screenPoint.y,

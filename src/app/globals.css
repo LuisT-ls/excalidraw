@@ -6,6 +6,10 @@
   color-scheme: light;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -19,6 +23,11 @@ body {
 body {
   color: #1f2937;
   background: #fafaf9;
+}
+
+html.dark body {
+  color: #e2e8f0;
+  background: #020617;
 }
 
 @keyframes confirm-dialog-in {

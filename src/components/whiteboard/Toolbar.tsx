@@ -52,8 +52,9 @@ const STROKE_WIDTHS = [
 ];
 
 const toolButtonClass =
-  "relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100";
-const activeToolClass = "bg-slate-900 text-white shadow-sm hover:bg-slate-900";
+  "relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800";
+const activeToolClass =
+  "bg-slate-900 text-white shadow-sm hover:bg-slate-900 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100";
 
 export function Toolbar() {
   const activeTool = useWhiteboardStore((state) => state.activeTool);
@@ -114,9 +115,9 @@ export function Toolbar() {
     <div className="flex flex-col items-center gap-2">
       <section
         aria-label="Ferramentas do quadro branco"
-        className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur"
+        className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
       >
-        <div className="flex flex-wrap items-center gap-0.5 border-r border-slate-200 pr-2">
+        <div className="flex flex-wrap items-center gap-0.5 border-r border-slate-200 pr-2 dark:border-slate-700">
           {TOOL_OPTIONS.map(({ tool, label, shortcut, icon: Icon }) => (
             <button
               key={tool}
@@ -135,7 +136,7 @@ export function Toolbar() {
                 className={`absolute bottom-0.5 right-0.5 rounded px-0.5 text-[8px] font-semibold leading-none ${
                   activeTool === tool
                     ? "bg-white/20 text-white"
-                    : "bg-slate-100 text-slate-500"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                 }`}
               >
                 {shortcut}
@@ -150,8 +151,8 @@ export function Toolbar() {
           aria-pressed={toolLocked}
           title={toolLocked ? "Desbloquear ferramenta" : "Bloquear ferramenta"}
           onClick={toggleToolLocked}
-          className={`${toolButtonClass} border-r border-slate-200 pr-2 ${
-            toolLocked ? "text-slate-900" : ""
+          className={`${toolButtonClass} border-r border-slate-200 pr-2 dark:border-slate-700 ${
+            toolLocked ? "text-slate-900 dark:text-white" : ""
           }`}
         >
           {toolLocked ? (
@@ -161,8 +162,8 @@ export function Toolbar() {
           )}
         </button>
 
-        <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-          <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <div className="flex items-center gap-1 border-r border-slate-200 pr-2 dark:border-slate-700">
+          <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Cor
           </span>
           {COLOR_PRESETS.map((color) => (
@@ -175,16 +176,16 @@ export function Toolbar() {
               onClick={() => applyStyle({ strokeColor: color.value })}
               className={`h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 ${
                 style.strokeColor === color.value
-                  ? "border-slate-900 ring-2 ring-slate-300"
-                  : "border-white shadow-sm"
+                    ? "border-slate-900 ring-2 ring-slate-300 dark:border-white dark:ring-slate-600"
+                    : "border-white shadow-sm dark:border-slate-700"
               }`}
               style={{ backgroundColor: color.value }}
             />
           ))}
         </div>
 
-        <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-          <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <div className="flex items-center gap-1 border-r border-slate-200 pr-2 dark:border-slate-700">
+          <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Traço
           </span>
           {STROKE_WIDTHS.map((width) => (
@@ -197,8 +198,8 @@ export function Toolbar() {
               onClick={() => applyStyle({ strokeWidth: width.value })}
               className={`rounded-md px-2 py-1 text-xs transition-colors ${
                 style.strokeWidth === width.value
-                  ? "bg-slate-200 text-slate-900"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
               }`}
             >
               {width.value}px
@@ -222,7 +223,7 @@ export function Toolbar() {
             title="Desfazer (Ctrl/Cmd+Z)"
             disabled={!canUndo}
             onClick={undo}
-            className={`${toolButtonClass} disabled:cursor-not-allowed disabled:text-slate-300`}
+            className={`${toolButtonClass} disabled:cursor-not-allowed disabled:text-slate-300 dark:disabled:text-slate-600`}
           >
             <Undo2 size={17} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -240,7 +241,7 @@ export function Toolbar() {
       </section>
 
       {elements.length === 0 && (
-        <p className="pointer-events-none text-center text-xs text-slate-500 drop-shadow-sm">
+        <p className="pointer-events-none text-center text-xs text-slate-500 drop-shadow-sm dark:text-slate-400">
           Para mover a tela, segure a roda do mouse ou a barra de espaço enquanto
           arrasta, ou use a ferramenta de mão.
         </p>
