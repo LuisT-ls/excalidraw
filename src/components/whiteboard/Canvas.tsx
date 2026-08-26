@@ -5,7 +5,6 @@ import {
   useEffect,
   useRef,
   type PointerEvent as ReactPointerEvent,
-  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { renderScene } from "@/features/editor/rendering/renderScene";
 import { measureText } from "@/features/editor/rendering/measureText";
@@ -90,6 +89,8 @@ const FREEHAND_SAMPLE_DISTANCE_WORLD = 2;
 const RESIZE_HANDLE_HIT_RADIUS_PX = 10;
 const DUPLICATE_OFFSET_WORLD = 20;
 const FIT_PADDING_RATIO = 0.1;
+const DOUBLE_POINTER_WINDOW_MS = 300;
+const DOUBLE_POINTER_DISTANCE_PX = 10;
 
 let clipboardElements: SceneElement[] = [];
 
@@ -161,6 +162,12 @@ interface MoveInteraction {
   shiftKey: boolean;
   didDrag: boolean;
   historyCommitted: boolean;
+}
+
+interface LastSelectPointerDown {
+  timestamp: number;
+  screenPoint: Point;
+  elementId: ElementId | null;
 }
 
 const RESIZE_HANDLES: ResizeHandle[] = [
@@ -272,6 +279,9 @@ export function Canvas({
   const resizeRef = useRef<ResizeInteraction | null>(null);
   const rotationRef = useRef<RotationInteraction | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
+  const lastSelectPointerDownRef = useRef<LastSelectPointerDown | null>(
+    null,
+  );
 
   elementsRef.current = elements;
   selectedElementIdsRef.current = selectedElementIds;
@@ -908,31 +918,20 @@ export function Canvas({
     }
   }, [textEditing]);
 
-  const handleDoubleClick = (event: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (textEditingRef.current || useWhiteboardStore.getState().activeTool !== "select") {
-      return;
-    }
-
-    event.preventDefault();
-    const screenPoint = getCanvasPoint(event);
-    const worldPoint = screenToWorld(screenPoint, viewportRef.current);
-    const element = findElementAtPoint(worldPoint);
-
-    if (element?.type === "text") {
-      selectedElementIdsRef.current = [element.id];
-      setSelectedElementIds([element.id]);
-      beginTextEditing(
-        { x: element.x, y: element.y },
-        worldToScreen({ x: element.x, y: element.y }, viewportRef.current),
-        element.text,
-        element.id,
-        {
-          ...style,
-          strokeColor: element.strokeColor,
-          strokeWidth: element.strokeWidth,
-        },
-      );
-    }
+  const openTextElementForEditing = (element: TextElement) => {
+    selectedElementIdsRef.current = [element.id];
+    setSelectedElementIds([element.id]);
+    beginTextEditing(
+      { x: element.x, y: element.y },
+      worldToScreen({ x: element.x, y: element.y }, viewportRef.current),
+      element.text,
+      element.id,
+      {
+        ...style,
+        strokeColor: element.strokeColor,
+        strokeWidth: element.strokeWidth,
+      },
+    );
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -955,6 +954,11 @@ export function Canvas({
     };
 
     const currentTool = useWhiteboardStore.getState().activeTool;
+
+    if (currentTool !== "select") {
+      lastSelectPointerDownRef.current = null;
+    }
+
     const shouldPan =
       event.button === 1 ||
       (event.button === 0 &&
@@ -962,6 +966,7 @@ export function Canvas({
 
     if (shouldPan) {
       event.preventDefault();
+      lastSelectPointerDownRef.current = null;
       interactionRef.current = null;
       marqueeRef.current = null;
       rotationRef.current = null;
@@ -990,11 +995,14 @@ export function Canvas({
     event.preventDefault();
     const screenPoint = getCanvasPoint(event);
     const worldPoint = screenToWorld(screenPoint, viewportRef.current);
+    const hitElement = findElementAtPoint(worldPoint);
+
     if (currentTool === "select") {
       const selected = findSelectedSingleElement();
       const handle = findInteractionHandleAtScreenPoint(screenPoint);
 
       if (selected && handle) {
+        lastSelectPointerDownRef.current = null;
         interactionRef.current = null;
         drawingRef.current = null;
         draftElementRef.current = null;
@@ -1032,6 +1040,37 @@ export function Canvas({
         commitHistoryEntry();
         capturePointer();
         return;
+      }
+
+      const now = Date.now();
+      const previousPointerDown = lastSelectPointerDownRef.current;
+      const isDoublePointerDown =
+        previousPointerDown !== null &&
+        now - previousPointerDown.timestamp <= DOUBLE_POINTER_WINDOW_MS &&
+        Math.hypot(
+          screenPoint.x - previousPointerDown.screenPoint.x,
+          screenPoint.y - previousPointerDown.screenPoint.y,
+        ) <= DOUBLE_POINTER_DISTANCE_PX &&
+        previousPointerDown.elementId === (hitElement?.id ?? null);
+
+      lastSelectPointerDownRef.current = isDoublePointerDown
+        ? null
+        : {
+            timestamp: now,
+            screenPoint,
+            elementId: hitElement?.id ?? null,
+          };
+
+      if (isDoublePointerDown) {
+        if (hitElement?.type === "text") {
+          openTextElementForEditing(hitElement);
+          return;
+        }
+
+        if (!hitElement) {
+          beginTextEditing(worldPoint, screenPoint);
+          return;
+        }
       }
     }
 
@@ -1101,8 +1140,6 @@ export function Canvas({
       capturePointer();
       return;
     }
-
-    const hitElement = findElementAtPoint(worldPoint);
 
     eraserRef.current = null;
     resizeRef.current = null;
@@ -1346,6 +1383,15 @@ export function Canvas({
 
     if (marquee && marquee.pointerId === event.pointerId) {
       const screenPoint = getCanvasPoint(event);
+      const screenDistance = Math.hypot(
+        screenPoint.x - marquee.startScreen.x,
+        screenPoint.y - marquee.startScreen.y,
+      );
+
+      if (screenDistance >= DRAG_THRESHOLD_PX) {
+        lastSelectPointerDownRef.current = null;
+      }
+
       marquee.currentScreen = screenPoint;
       marquee.currentWorld = screenToWorld(
         screenPoint,
@@ -1373,6 +1419,7 @@ export function Canvas({
       }
 
       interaction.didDrag = true;
+      lastSelectPointerDownRef.current = null;
     }
 
     if (interaction.targetIds.length > 0) {
@@ -1657,7 +1704,6 @@ export function Canvas({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={(event) => handlePointerUp(event, true)}
-        onDoubleClick={handleDoubleClick}
         onPointerLeave={() => setHoveredResizeHandle(null)}
         onWheel={handleWheel}
         aria-label="Quadro branco"
