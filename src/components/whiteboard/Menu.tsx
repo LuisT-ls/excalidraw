@@ -16,6 +16,10 @@ import {
   convertExcalidrawScene,
   getExcalidrawBackgroundColor,
 } from "@/features/editor/persistence/excalidrawImport";
+import {
+  createShareLink,
+  SHARE_LINK_WARNING_LENGTH,
+} from "@/features/editor/persistence/shareLink";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useTheme, type Theme } from "@/components/theme/ThemeProvider";
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
@@ -65,10 +69,12 @@ export function Menu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [customColor, setCustomColor] = useState("");
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
   const elements = useWhiteboardStore((state) => state.elements);
+  const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const backgroundColor = useWhiteboardStore(
     (state) => state.backgroundColor,
   );
@@ -114,6 +120,10 @@ export function Menu() {
   const closeMenu = () => setIsOpen(false);
 
   const clearScene = async () => {
+    if (isReadOnly) {
+      return;
+    }
+
     closeMenu();
 
     const confirmed = await confirm({
@@ -130,6 +140,35 @@ export function Menu() {
     setElements([]);
     setSelectedElementIds([]);
     removeSavedScene();
+  };
+
+  const shareScene = async () => {
+    if (elements.length === 0) {
+      return;
+    }
+
+    closeMenu();
+
+    try {
+      const link = await createShareLink({
+        type: "whiteboard-scene",
+        version: 1,
+        elements,
+        backgroundColor,
+      });
+
+      await navigator.clipboard.writeText(link);
+      setShareStatus(
+        link.length > SHARE_LINK_WARNING_LENGTH
+          ? "Link copiado. Ele é longo e pode ser truncado por algumas plataformas."
+          : "Link compartilhável copiado!",
+      );
+    } catch (error) {
+      console.warn("Não foi possível copiar o link compartilhável.", error);
+      setShareStatus("Não foi possível copiar o link compartilhável.");
+    }
+
+    window.setTimeout(() => setShareStatus(null), 5000);
   };
 
   useEffect(() => {
@@ -286,6 +325,7 @@ export function Menu() {
           >
             <ActionMenuItem
               onClick={() => importInputRef.current?.click()}
+              disabled={isReadOnly}
             >
               Abrir
             </ActionMenuItem>
@@ -302,7 +342,14 @@ export function Menu() {
               Exportar imagem...
             </ActionMenuItem>
             <ActionMenuItem
+              disabled={elements.length === 0}
+              onClick={shareScene}
+            >
+              Copiar link compartilhável
+            </ActionMenuItem>
+            <ActionMenuItem
               onClick={clearScene}
+              disabled={isReadOnly}
               destructive
             >
               Limpar a tela
@@ -323,11 +370,12 @@ export function Menu() {
                   <button
                     key={preset.value}
                     type="button"
+                    disabled={isReadOnly}
                     aria-label={`Fundo ${preset.label}`}
                     aria-pressed={backgroundColor === preset.value}
                     title={preset.label}
                     onClick={() => setBackgroundColor(preset.value)}
-                    className={`h-7 rounded-md border-2 transition-transform hover:scale-105 ${
+                    className={`h-7 rounded-md border-2 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 ${
                       backgroundColor === preset.value
                         ? "border-slate-900 ring-1 ring-slate-300 dark:border-white dark:ring-slate-600"
                         : "border-slate-200 dark:border-slate-700"
@@ -340,6 +388,7 @@ export function Menu() {
                 <span>Hex</span>
                 <input
                   type="text"
+                  disabled={isReadOnly}
                   value={customColor || backgroundColor}
                   onChange={(event) => handleCustomColorChange(event.target.value)}
                   placeholder="#ffffff"
@@ -384,6 +433,15 @@ export function Menu() {
           </div>
         )}
       </div>
+
+      {shareStatus && (
+        <div
+          role="status"
+          className="absolute left-0 top-12 z-40 mt-1 w-72 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 shadow-lg transition-colors duration-300 dark:border-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-200"
+        >
+          {shareStatus}
+        </div>
+      )}
 
       {isShortcutsOpen && (
         <div

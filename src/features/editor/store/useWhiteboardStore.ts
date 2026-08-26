@@ -29,6 +29,7 @@ export interface WhiteboardState {
   elements: SceneElement[];
   selectedElementIds: ElementId[];
   activeTool: Tool;
+  isReadOnly: boolean;
   toolLocked: boolean;
   style: EditorStyle;
   backgroundColor: string;
@@ -40,6 +41,7 @@ export interface WhiteboardState {
   removeElement: (id: ElementId) => void;
   setSelectedElementIds: (ids: ElementId[]) => void;
   setActiveTool: (tool: Tool) => void;
+  setReadOnly: (readOnly: boolean) => void;
   setToolLocked: (locked: boolean) => void;
   toggleToolLocked: () => void;
   setStyle: (style: Partial<EditorStyle>) => void;
@@ -86,6 +88,7 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
   elements: [],
   selectedElementIds: [],
   activeTool: "select",
+  isReadOnly: false,
   toolLocked: false,
   style: initialStyle,
   backgroundColor: DEFAULT_BACKGROUND_COLOR,
@@ -117,6 +120,7 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
   setSelectedElementIds: (selectedElementIds) =>
     set({ selectedElementIds: [...selectedElementIds] }),
   setActiveTool: (activeTool) => set({ activeTool }),
+  setReadOnly: (isReadOnly) => set({ isReadOnly }),
   setToolLocked: (toolLocked) => set({ toolLocked }),
   toggleToolLocked: () => set((state) => ({ toolLocked: !state.toolLocked })),
   setStyle: (style) =>

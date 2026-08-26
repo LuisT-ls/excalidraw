@@ -48,6 +48,7 @@ const activeToolClass =
 
 export function Toolbar() {
   const activeTool = useWhiteboardStore((state) => state.activeTool);
+  const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const toolLocked = useWhiteboardStore((state) => state.toolLocked);
   const style = useWhiteboardStore((state) => state.style);
   const selectedElementIds = useWhiteboardStore(
@@ -112,11 +113,12 @@ export function Toolbar() {
             <button
               key={tool}
               type="button"
+              disabled={isReadOnly && tool !== "hand"}
               aria-label={label}
               aria-pressed={activeTool === tool}
               title={`${label} (${shortcut})`}
               onClick={() => setActiveTool(tool)}
-              className={`${toolButtonClass} ${
+              className={`${toolButtonClass} disabled:cursor-not-allowed disabled:opacity-40 ${
                 activeTool === tool ? activeToolClass : ""
               }`}
             >
@@ -137,11 +139,12 @@ export function Toolbar() {
 
         <button
           type="button"
+          disabled={isReadOnly}
           aria-label={toolLocked ? "Desbloquear ferramenta" : "Bloquear ferramenta"}
           aria-pressed={toolLocked}
           title={toolLocked ? "Desbloquear ferramenta" : "Bloquear ferramenta"}
           onClick={toggleToolLocked}
-          className={`${toolButtonClass} border-r border-slate-200 pr-2 dark:border-slate-700 ${
+          className={`${toolButtonClass} border-r border-slate-200 pr-2 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40 ${
             toolLocked ? "text-slate-900 dark:text-white" : ""
           }`}
         >
@@ -160,11 +163,12 @@ export function Toolbar() {
             <button
               key={color.value}
               type="button"
+              disabled={isReadOnly}
               aria-label={`Cor ${color.label}`}
               aria-pressed={style.strokeColor === color.value}
               title={color.label}
               onClick={() => applyStyle({ strokeColor: color.value })}
-              className={`h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 ${
+              className={`h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40 ${
                 style.strokeColor === color.value
                     ? "border-slate-900 ring-2 ring-slate-300 dark:border-white dark:ring-slate-600"
                     : "border-white shadow-sm dark:border-slate-700"
@@ -182,11 +186,12 @@ export function Toolbar() {
             <button
               key={width.value}
               type="button"
+              disabled={isReadOnly}
               aria-label={`Traço ${width.label}`}
               aria-pressed={style.strokeWidth === width.value}
               title={width.label}
               onClick={() => applyStyle({ strokeWidth: width.value })}
-              className={`rounded-md px-2 py-1 text-xs transition-colors ${
+              className={`rounded-md px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 style.strokeWidth === width.value
                   ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
                   : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -211,7 +216,7 @@ export function Toolbar() {
             type="button"
             aria-label="Desfazer"
             title="Desfazer (Ctrl/Cmd+Z)"
-            disabled={!canUndo}
+            disabled={isReadOnly || !canUndo}
             onClick={undo}
             className={`${toolButtonClass} disabled:cursor-not-allowed disabled:text-slate-300 dark:disabled:text-slate-600`}
           >
@@ -221,7 +226,7 @@ export function Toolbar() {
             type="button"
             aria-label="Refazer"
             title="Refazer (Ctrl/Cmd+Shift+Z)"
-            disabled={!canRedo}
+            disabled={isReadOnly || !canRedo}
             onClick={redo}
             className={`${toolButtonClass} disabled:cursor-not-allowed disabled:text-slate-300`}
           >

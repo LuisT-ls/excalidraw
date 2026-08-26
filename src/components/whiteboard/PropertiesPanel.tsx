@@ -57,6 +57,7 @@ function hasUniformValue<T>(
 
 export function PropertiesPanel() {
   const elements = useWhiteboardStore((state) => state.elements);
+  const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const selectedElementIds = useWhiteboardStore(
     (state) => state.selectedElementIds,
   );
@@ -98,7 +99,7 @@ export function PropertiesPanel() {
     setOpacityPercent(opacityToPercent(firstOpacity));
   }, [firstOpacity, selectedIdsKey]);
 
-  if (selectedElements.length === 0) {
+  if (isReadOnly || selectedElements.length === 0) {
     return null;
   }
 

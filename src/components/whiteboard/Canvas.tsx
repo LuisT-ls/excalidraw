@@ -68,6 +68,7 @@ import {
   removeSavedScene,
   saveScene,
 } from "@/features/editor/persistence/sceneStorage";
+import { loadSharedSceneFromLocation } from "@/features/editor/persistence/shareLink";
 import { getSceneBounds } from "@/features/editor/interaction/sceneBounds";
 import {
   generateElementId,
@@ -244,6 +245,7 @@ export function Canvas({
   );
   const activeTool = useWhiteboardStore((state) => state.activeTool);
   const toolLocked = useWhiteboardStore((state) => state.toolLocked);
+  const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const style = useWhiteboardStore((state) => state.style);
   const storeBackgroundColor = useWhiteboardStore(
     (state) => state.backgroundColor,
@@ -258,6 +260,7 @@ export function Canvas({
     (state) => state.setBackgroundColor,
   );
   const setActiveTool = useWhiteboardStore((state) => state.setActiveTool);
+  const setReadOnly = useWhiteboardStore((state) => state.setReadOnly);
   const updateElement = useWhiteboardStore((state) => state.updateElement);
   const addElement = useWhiteboardStore((state) => state.addElement);
   const removeElement = useWhiteboardStore((state) => state.removeElement);
@@ -286,6 +289,7 @@ export function Canvas({
   const backgroundColorRef = useRef(backgroundColor);
   const viewportRef = useRef<Viewport>(viewport);
   const activeToolRef = useRef<Tool>(activeTool);
+  const isReadOnlyRef = useRef(isReadOnly);
   const styleRef = useRef(style);
   const recentlyCreatedElementsRef = useRef<Map<ElementId, number>>(new Map());
   const cursorWorldPointRef = useRef<Point | null>(null);
@@ -329,6 +333,7 @@ export function Canvas({
   selectedElementIdsRef.current = selectedElementIds;
   backgroundColorRef.current = backgroundColor;
   activeToolRef.current = activeTool;
+  isReadOnlyRef.current = isReadOnly;
   styleRef.current = style;
 
   const registerCreatedElement = (id: ElementId) => {
@@ -342,17 +347,42 @@ export function Canvas({
   }, [viewport]);
 
   useEffect(() => {
-    const persistedScene = loadScene();
+    let disposed = false;
 
-    if (persistedScene) {
-      setElements(persistedScene.elements);
-      if (persistedScene.viewport) {
-        setViewport(persistedScene.viewport);
+    const loadInitialScene = async () => {
+      const shared = await loadSharedSceneFromLocation();
+
+      if (disposed) {
+        return;
       }
-      if (persistedScene.backgroundColor) {
-        setBackgroundColor(persistedScene.backgroundColor);
+
+      if (shared.found && shared.scene) {
+        setElements(shared.scene.elements);
+        setSelectedElementIds([]);
+        setBackgroundColor(
+          shared.scene.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
+        );
+        setReadOnly(true);
+      } else {
+        if (shared.found) {
+          window.alert("O link compartilhado é inválido ou está corrompido.");
+        }
+
+        const persistedScene = loadScene();
+
+        if (persistedScene) {
+          setElements(persistedScene.elements);
+          if (persistedScene.viewport) {
+            setViewport(persistedScene.viewport);
+          }
+          if (persistedScene.backgroundColor) {
+            setBackgroundColor(persistedScene.backgroundColor);
+          }
+        }
       }
-    }
+    };
+
+    void loadInitialScene();
 
     let saveTimeout: number | null = null;
 
@@ -363,6 +393,11 @@ export function Canvas({
 
       saveTimeout = window.setTimeout(() => {
         const state = useWhiteboardStore.getState();
+
+        if (state.isReadOnly) {
+          saveTimeout = null;
+          return;
+        }
 
         if (
           state.elements.length === 0 &&
@@ -399,7 +434,13 @@ export function Canvas({
         window.clearTimeout(saveTimeout);
       }
     };
-  }, [setBackgroundColor, setElements, setViewport]);
+  }, [
+    setBackgroundColor,
+    setElements,
+    setReadOnly,
+    setSelectedElementIds,
+    setViewport,
+  ]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -595,6 +636,19 @@ export function Canvas({
 
       const isModifierPressed = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
+
+      if (isReadOnlyRef.current) {
+        if (!isModifierPressed && !event.altKey && key === "h") {
+          event.preventDefault();
+          setActiveTool("hand");
+        }
+
+        if (event.code === "Space") {
+          spacePressedRef.current = true;
+        }
+
+        return;
+      }
 
       if (isModifierPressed && key === "z") {
         event.preventDefault();
@@ -907,7 +961,11 @@ export function Canvas({
   };
 
   const handleContextMenu = (event: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (activeToolRef.current !== "select" || textEditingRef.current) {
+    if (
+      isReadOnlyRef.current ||
+      activeToolRef.current !== "select" ||
+      textEditingRef.current
+    ) {
       return;
     }
 
@@ -1255,6 +1313,10 @@ export function Canvas({
         offsetY: viewport.offsetY,
       };
       capturePointer();
+      return;
+    }
+
+    if (isReadOnlyRef.current) {
       return;
     }
 
