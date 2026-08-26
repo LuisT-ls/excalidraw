@@ -1,4 +1,5 @@
 import { parseScene, type PersistedScene } from "./sceneStorage";
+import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 import type {
   ArrowElement,
   CornerStyle,
@@ -16,6 +17,10 @@ import type {
 export const SHARE_HASH_PREFIX = "#data=";
 export const SHARE_LINK_WARNING_LENGTH = 6000;
 const COMPACT_SHARE_PREFIX = "v2.";
+const LZ_SHARE_PREFIX = "v3l.";
+const RAW_DEFLATE_SHARE_PREFIX = "v3d.";
+const GZIP_SHARE_PREFIX = "v3g.";
+const SHARE_NUMBER_PRECISION = 2;
 
 type CompactElement = unknown[];
 
@@ -104,8 +109,19 @@ function isPointArray(value: unknown): value is number[] {
   );
 }
 
-function packPoints(points: Array<{ x: number; y: number }>): number[] {
-  return points.flatMap((point) => [point.x, point.y]);
+function roundShareNumber(value: number): number {
+  const factor = 10 ** SHARE_NUMBER_PRECISION;
+  return Math.round(value * factor) / factor;
+}
+
+function packPoints(
+  points: Array<{ x: number; y: number }>,
+  roundNumbers: boolean,
+): number[] {
+  return points.flatMap((point) => [
+    roundNumbers ? roundShareNumber(point.x) : point.x,
+    roundNumbers ? roundShareNumber(point.y) : point.y,
+  ]);
 }
 
 function unpackPoints(value: unknown): Array<{ x: number; y: number }> | null {
@@ -124,24 +140,29 @@ function unpackPoints(value: unknown): Array<{ x: number; y: number }> | null {
 /**
  * Shares use a compact transport representation, while the decoded result is
  * still the regular PersistedScene. Short keys, enum codes and flat point
- * arrays remove a substantial amount of repeated JSON overhead before gzip.
- * Exported JSON files keep their readable canonical format.
+ * arrays remove a substantial amount of repeated JSON overhead. Exported JSON
+ * files keep their readable canonical format.
  */
-function packElement(element: SceneElement): CompactElement {
+function packElement(
+  element: SceneElement,
+  roundNumbers: boolean,
+): CompactElement {
+  const number = (value: number) =>
+    roundNumbers ? roundShareNumber(value) : value;
   const base = [
     ELEMENT_TYPE_CODES[element.type],
     element.id,
-    element.x,
-    element.y,
-    element.rotation,
+    number(element.x),
+    number(element.y),
+    number(element.rotation),
     element.strokeColor,
-    element.strokeWidth,
+    number(element.strokeWidth),
     STROKE_STYLE_CODES[element.strokeStyle],
     element.fillColor,
     FILL_STYLE_CODES[element.fillStyle],
-    element.opacity,
+    number(element.opacity),
     element.seed,
-    element.roughness,
+    number(element.roughness),
   ];
 
   switch (element.type) {
@@ -149,22 +170,22 @@ function packElement(element: SceneElement): CompactElement {
       return [
         ...base,
         CORNER_STYLE_CODES[element.cornerStyle],
-        element.width,
-        element.height,
+        number(element.width),
+        number(element.height),
       ];
     case "ellipse":
-      return [...base, element.width, element.height];
+      return [...base, number(element.width), number(element.height)];
     case "line":
     case "arrow":
     case "freehand":
-      return [...base, packPoints(element.points)];
+      return [...base, packPoints(element.points, roundNumbers)];
     case "text":
       return [
         ...base,
         element.text,
-        element.width,
-        element.height,
-        element.fontSize,
+        number(element.width),
+        number(element.height),
+        number(element.fontSize),
         element.fontFamily,
         FONT_WEIGHT_CODES[element.fontWeight],
         TEXT_ALIGN_CODES[element.textAlign],
@@ -292,9 +313,12 @@ function unpackElement(value: unknown): SceneElement | null {
     : null;
 }
 
-function packScene(scene: PersistedScene): CompactScenePayload {
+function packScene(
+  scene: PersistedScene,
+  roundNumbers = false,
+): CompactScenePayload {
   const packed: CompactScenePayload = {
-    e: scene.elements.map(packElement),
+    e: scene.elements.map((element) => packElement(element, roundNumbers)),
   };
 
   if (scene.backgroundColor !== undefined) {
@@ -373,24 +397,65 @@ function getCompressionStreams() {
   return { CompressionStream, DecompressionStream };
 }
 
+type StreamCompressionFormat = "gzip" | "deflate-raw";
+
+async function compressText(
+  raw: string,
+  format: StreamCompressionFormat,
+): Promise<string> {
+  const { CompressionStream: BrowserCompressionStream } =
+    getCompressionStreams();
+  const input = new TextEncoder().encode(raw);
+  const compressedStream = new Blob([input])
+    .stream()
+    .pipeThrough(new BrowserCompressionStream(format));
+  const compressed = new Uint8Array(
+    await new Response(compressedStream).arrayBuffer(),
+  );
+
+  return bytesToBase64Url(compressed);
+}
+
+async function decompressText(
+  encoded: string,
+  format: StreamCompressionFormat,
+): Promise<string> {
+  const { DecompressionStream: BrowserDecompressionStream } =
+    getCompressionStreams();
+  const compressed = base64UrlToBytes(encoded);
+  const decompressedStream = new Blob([compressed])
+    .stream()
+    .pipeThrough(new BrowserDecompressionStream(format));
+
+  return new Response(decompressedStream).text();
+}
+
 export async function encodeSharedScene(scene: PersistedScene): Promise<string> {
   if (typeof window === "undefined") {
     throw new Error("Links compartilháveis só podem ser gerados no navegador.");
   }
 
-  const { CompressionStream: BrowserCompressionStream } =
-    getCompressionStreams();
-  const input = new TextEncoder().encode(
-    JSON.stringify(packScene(scene)),
-  );
-  const compressedStream = new Blob([input])
-    .stream()
-    .pipeThrough(new BrowserCompressionStream("gzip"));
-  const compressed = new Uint8Array(
-    await new Response(compressedStream).arrayBuffer(),
-  );
+  const raw = JSON.stringify(packScene(scene, true));
+  const candidates = [
+    `${LZ_SHARE_PREFIX}${compressToEncodedURIComponent(raw)}`,
+  ];
 
-  return `${COMPACT_SHARE_PREFIX}${bytesToBase64Url(compressed)}`;
+  for (const candidate of [
+    { format: "deflate-raw" as const, prefix: RAW_DEFLATE_SHARE_PREFIX },
+    { format: "gzip" as const, prefix: GZIP_SHARE_PREFIX },
+  ]) {
+    try {
+      candidates.push(
+        `${candidate.prefix}${await compressText(raw, candidate.format)}`,
+      );
+    } catch {
+      // LZ-string remains available when a browser lacks a stream format.
+    }
+  }
+
+  return candidates.reduce((shortest, candidate) =>
+    candidate.length < shortest.length ? candidate : shortest,
+  );
 }
 
 export async function decodeSharedScene(encoded: string): Promise<PersistedScene | null> {
@@ -399,19 +464,31 @@ export async function decodeSharedScene(encoded: string): Promise<PersistedScene
   }
 
   try {
-    const { DecompressionStream: BrowserDecompressionStream } =
-      getCompressionStreams();
-    const isCompact = encoded.startsWith(COMPACT_SHARE_PREFIX);
-    const payload = isCompact
-      ? encoded.slice(COMPACT_SHARE_PREFIX.length)
-      : encoded;
-    const compressed = base64UrlToBytes(payload);
-    const decompressedStream = new Blob([compressed])
-      .stream()
-      .pipeThrough(new BrowserDecompressionStream("gzip"));
-    const raw = await new Response(decompressedStream).text();
+    if (encoded.startsWith(LZ_SHARE_PREFIX)) {
+      const raw = decompressFromEncodedURIComponent(
+        encoded.slice(LZ_SHARE_PREFIX.length),
+      );
 
-    if (isCompact) {
+      return raw ? unpackScene(JSON.parse(raw)) : null;
+    }
+
+    const isCompact = encoded.startsWith(COMPACT_SHARE_PREFIX);
+    const isRawDeflate = encoded.startsWith(RAW_DEFLATE_SHARE_PREFIX);
+    const isRoundedCompact = encoded.startsWith(GZIP_SHARE_PREFIX);
+    const prefix = isRawDeflate
+      ? RAW_DEFLATE_SHARE_PREFIX
+      : isRoundedCompact
+        ? GZIP_SHARE_PREFIX
+        : isCompact
+          ? COMPACT_SHARE_PREFIX
+          : "";
+    const payload = encoded.slice(prefix.length);
+    const raw = await decompressText(
+      payload,
+      isRawDeflate ? "deflate-raw" : "gzip",
+    );
+
+    if (isCompact || isRawDeflate || isRoundedCompact) {
       return unpackScene(JSON.parse(raw));
     }
 
