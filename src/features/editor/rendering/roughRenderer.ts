@@ -27,11 +27,18 @@ export function getStrokeLineDash(
   return undefined;
 }
 
+export function shouldDisableMultiStroke(
+  strokeStyle: "solid" | "dashed" | "dotted" = "solid",
+): boolean {
+  return strokeStyle !== "solid";
+}
+
 function roughOptions(element: ElementBase) {
   return {
     stroke: element.strokeColor,
     strokeWidth: element.strokeWidth,
     strokeLineDash: getStrokeLineDash(element.strokeStyle),
+    disableMultiStroke: shouldDisableMultiStroke(element.strokeStyle),
     fill: element.fillColor ?? undefined,
     fillStyle: element.fillStyle,
     roughness: element.roughness,

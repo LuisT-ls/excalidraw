@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { getStrokeLineDash, renderText } from "./roughRenderer";
+import {
+  getStrokeLineDash,
+  renderText,
+  shouldDisableMultiStroke,
+} from "./roughRenderer";
 import type { TextElement } from "../model/types";
 
 describe("renderText", () => {
@@ -48,5 +52,8 @@ describe("stroke styles", () => {
     expect(getStrokeLineDash("solid")).toBeUndefined();
     expect(getStrokeLineDash("dashed")).toEqual([12, 8]);
     expect(getStrokeLineDash("dotted")).toEqual([2, 6]);
+    expect(shouldDisableMultiStroke("solid")).toBe(false);
+    expect(shouldDisableMultiStroke("dashed")).toBe(true);
+    expect(shouldDisableMultiStroke("dotted")).toBe(true);
   });
 });

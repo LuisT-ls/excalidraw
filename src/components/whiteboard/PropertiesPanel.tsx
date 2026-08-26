@@ -28,6 +28,10 @@ import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
 
 const panelButtonClass =
   "flex items-center justify-center gap-1.5 rounded-md border border-slate-200 px-2 py-2 text-xs text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800";
+const activePanelButtonClass =
+  "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-200 dark:border-blue-400 dark:bg-blue-950/50 dark:text-blue-200 dark:ring-blue-900";
+const activeColorButtonClass =
+  "scale-110 ring-2 ring-blue-500 ring-offset-1 dark:ring-blue-400 dark:ring-offset-slate-900";
 
 type ElementPatch = Partial<SceneElement>;
 
@@ -37,6 +41,18 @@ function isFillElement(element: SceneElement): boolean {
 
 function supportsStrokeControls(element: SceneElement): boolean {
   return element.type !== "text";
+}
+
+function optionButtonClass(active: boolean): string {
+  return `${panelButtonClass}${active ? ` ${activePanelButtonClass}` : ""}`;
+}
+
+function hasUniformValue<T>(
+  elements: SceneElement[],
+  value: T,
+  read: (element: SceneElement) => T,
+): boolean {
+  return elements.length > 0 && elements.every((element) => read(element) === value);
 }
 
 export function PropertiesPanel() {
@@ -255,12 +271,18 @@ export function PropertiesPanel() {
               key={color.value}
               type="button"
               aria-label={`Contorno ${color.label}`}
-              aria-pressed={selectedElements.every(
-                (element) => element.strokeColor === color.value,
+              aria-pressed={hasUniformValue(
+                selectedElements,
+                color.value,
+                (element) => element.strokeColor,
               )}
               title={color.label}
               onClick={() => applyStrokeColor(color.value)}
-              className="h-6 w-6 rounded-full border-2 border-white shadow-sm ring-slate-300 transition-transform hover:scale-110 focus:outline-none focus:ring-2 dark:border-slate-700 dark:ring-slate-600"
+              className={`h-6 w-6 rounded-full border-2 border-white shadow-sm ring-slate-300 transition-transform hover:scale-110 focus:outline-none focus:ring-2 dark:border-slate-700 dark:ring-slate-600 ${hasUniformValue(
+                selectedElements,
+                color.value,
+                (element) => element.strokeColor,
+              ) ? activeColorButtonClass : ""}`}
               style={{ backgroundColor: color.value }}
             />
           ))}
@@ -281,12 +303,18 @@ export function PropertiesPanel() {
                 key={fill.label}
                 type="button"
                 aria-label={`Fundo ${fill.label}`}
-                aria-pressed={selectedElements.every(
-                  (element) => element.fillColor === fill.value,
+                aria-pressed={hasUniformValue(
+                  selectedElements,
+                  fill.value,
+                  (element) => element.fillColor,
                 )}
                 title={fill.label}
                 onClick={() => applyFill(fill.value)}
-                className="h-6 w-6 rounded-md border border-slate-300 shadow-sm transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-slate-600"
+                className={`h-6 w-6 rounded-md border border-slate-300 shadow-sm transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-slate-600 ${hasUniformValue(
+                  selectedElements,
+                  fill.value,
+                  (element) => element.fillColor,
+                ) ? activeColorButtonClass : ""}`}
                 style={{
                   backgroundColor: fill.value ?? "transparent",
                   backgroundImage:
@@ -315,11 +343,19 @@ export function PropertiesPanel() {
                   key={width.value}
                   type="button"
                   aria-label={`Traço ${width.label}`}
-                  aria-pressed={selectedElements.every(
-                    (element) => element.strokeWidth === width.value,
+                  aria-pressed={hasUniformValue(
+                    selectedElements,
+                    width.value,
+                    (element) => element.strokeWidth,
                   )}
                   onClick={() => applyStrokeWidth(width.value)}
-                  className={panelButtonClass}
+                  className={optionButtonClass(
+                    hasUniformValue(
+                      selectedElements,
+                      width.value,
+                      (element) => element.strokeWidth,
+                    ),
+                  )}
                 >
                   {width.value}px
                 </button>
@@ -340,8 +376,10 @@ export function PropertiesPanel() {
                   key={strokeStyle.value}
                   type="button"
                   aria-label={strokeStyle.label}
-                  aria-pressed={selectedElements.every(
-                    (element) => element.strokeStyle === strokeStyle.value,
+                  aria-pressed={hasUniformValue(
+                    selectedElements,
+                    strokeStyle.value,
+                    (element) => element.strokeStyle,
                   )}
                   onClick={() =>
                     applyElementPatch(
@@ -350,7 +388,13 @@ export function PropertiesPanel() {
                       supportsStrokeControls,
                     )
                   }
-                  className={panelButtonClass}
+                  className={optionButtonClass(
+                    hasUniformValue(
+                      selectedElements,
+                      strokeStyle.value,
+                      (element) => element.strokeStyle,
+                    ),
+                  )}
                 >
                   {strokeStyle.label}
                 </button>
@@ -371,8 +415,10 @@ export function PropertiesPanel() {
                   key={roughness.value}
                   type="button"
                   aria-label={roughness.label}
-                  aria-pressed={selectedElements.every(
-                    (element) => element.roughness === roughness.value,
+                  aria-pressed={hasUniformValue(
+                    selectedElements,
+                    roughness.value,
+                    (element) => element.roughness,
                   )}
                   onClick={() =>
                     applyElementPatch(
@@ -381,7 +427,13 @@ export function PropertiesPanel() {
                       supportsStrokeControls,
                     )
                   }
-                  className={panelButtonClass}
+                  className={optionButtonClass(
+                    hasUniformValue(
+                      selectedElements,
+                      roughness.value,
+                      (element) => element.roughness,
+                    ),
+                  )}
                 >
                   {roughness.label}
                 </button>
@@ -405,10 +457,13 @@ export function PropertiesPanel() {
                 key={cornerStyle}
                 type="button"
                 aria-label={cornerStyle === "sharp" ? "Retas" : "Arredondadas"}
-                aria-pressed={selectedElements.every(
+                aria-pressed={hasUniformValue(
+                  selectedElements,
+                  cornerStyle,
                   (element) =>
-                    element.type === "rectangle" &&
-                    element.cornerStyle === cornerStyle,
+                    element.type === "rectangle"
+                      ? element.cornerStyle
+                      : undefined,
                 )}
                 onClick={() =>
                   applyElementPatch(
@@ -417,7 +472,16 @@ export function PropertiesPanel() {
                     (element) => element.type === "rectangle",
                   )
                 }
-                className={panelButtonClass}
+                className={optionButtonClass(
+                  hasUniformValue(
+                    selectedElements,
+                    cornerStyle,
+                    (element) =>
+                      element.type === "rectangle"
+                        ? element.cornerStyle
+                        : undefined,
+                  ),
+                )}
               >
                 {cornerStyle === "sharp" ? "Retas" : "Arredondadas"}
               </button>
