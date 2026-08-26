@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
 import type { Tool } from "@/features/editor/model/types";
+import {
+  COLOR_PRESETS,
+  STROKE_WIDTHS,
+} from "@/features/editor/model/stylePresets";
 
 const TOOL_OPTIONS: Array<{
   tool: Tool;
@@ -35,20 +39,6 @@ const TOOL_OPTIONS: Array<{
   { tool: "pencil", label: "Lápis", shortcut: "P", icon: Pencil },
   { tool: "eraser", label: "Borracha", shortcut: "E", icon: Eraser },
   { tool: "hand", label: "Mão", shortcut: "H", icon: Hand },
-];
-
-const COLOR_PRESETS = [
-  { label: "Preto", value: "#1f2937" },
-  { label: "Azul", value: "#2563eb" },
-  { label: "Vermelho", value: "#dc2626" },
-  { label: "Verde", value: "#059669" },
-  { label: "Roxo", value: "#7c3aed" },
-];
-
-const STROKE_WIDTHS = [
-  { label: "Fino", value: 1 },
-  { label: "Médio", value: 2 },
-  { label: "Grosso", value: 4 },
 ];
 
 const toolButtonClass =

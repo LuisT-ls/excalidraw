@@ -1,5 +1,6 @@
 import { Canvas } from "@/components/whiteboard/Canvas";
 import { Menu } from "@/components/whiteboard/Menu";
+import { PropertiesPanel } from "@/components/whiteboard/PropertiesPanel";
 import { Toolbar } from "@/components/whiteboard/Toolbar";
 
 export default function HomePage() {
@@ -9,6 +10,7 @@ export default function HomePage() {
       <div className="absolute left-4 top-4 z-20">
         <Menu />
       </div>
+      <PropertiesPanel />
       <div className="pointer-events-none absolute inset-x-0 top-4 z-10 flex justify-center px-4">
         <div className="pointer-events-auto">
           <Toolbar />
