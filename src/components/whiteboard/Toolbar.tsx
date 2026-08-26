@@ -105,7 +105,7 @@ export function Toolbar() {
     <div className="flex flex-col items-center gap-2">
       <section
         aria-label="Ferramentas do quadro branco"
-        className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
+        className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900/95"
       >
         <div className="flex flex-wrap items-center gap-0.5 border-r border-slate-200 pr-2 dark:border-slate-700">
           {TOOL_OPTIONS.map(({ tool, label, shortcut, icon: Icon }) => (
@@ -231,7 +231,7 @@ export function Toolbar() {
       </section>
 
       {elements.length === 0 && (
-        <p className="pointer-events-none text-center text-xs text-slate-500 drop-shadow-sm dark:text-slate-400">
+        <p className="pointer-events-none text-center text-xs text-slate-500 drop-shadow-sm transition-colors duration-300 dark:text-slate-400">
           Para mover a tela, segure a roda do mouse ou a barra de espaço enquanto
           arrasta, ou use a ferramenta de mão.
         </p>

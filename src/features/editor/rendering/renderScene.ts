@@ -11,6 +11,7 @@ import {
 } from "../interaction/resize";
 import { getRotationHandleGeometry } from "../interaction/rotation";
 import type { Point, SceneElement } from "../model/types";
+import { getElementPopScale } from "./animation";
 import {
   renderArrow,
   renderEllipse,
@@ -29,6 +30,16 @@ export interface SelectionMarquee {
 
 export interface RenderSceneOptions {
   showSelection?: boolean;
+  currentTime?: number;
+  recentlyCreatedAt?: ReadonlyMap<string, number>;
+  cursorIndicator?: CursorIndicator;
+}
+
+export interface CursorIndicator {
+  point: Point;
+  radius: number;
+  color: string;
+  pulsing?: boolean;
 }
 
 // A instância de RoughCanvas fica associada ao elemento HTML e é reutilizada
@@ -63,6 +74,21 @@ export function renderScene(
   const renderElement = (element: SceneElement) => {
     context.save();
     context.globalAlpha = element.opacity;
+
+    const createdAt = options.recentlyCreatedAt?.get(element.id);
+    if (createdAt !== undefined && options.currentTime !== undefined) {
+      const scale = getElementPopScale(options.currentTime - createdAt);
+
+      if (scale !== 1) {
+        const bounds = getBoundingBox(element);
+        const centerX = bounds.x + bounds.width / 2;
+        const centerY = bounds.y + bounds.height / 2;
+        context.translate(centerX, centerY);
+        context.scale(scale, scale);
+        context.translate(-centerX, -centerY);
+      }
+    }
+
     context.translate(element.x, element.y);
     context.rotate(element.rotation);
 
@@ -220,6 +246,29 @@ export function renderScene(
     context.setLineDash([6 / viewportZoom, 4 / viewportZoom]);
     context.fillRect(x, y, width, height);
     context.strokeRect(x, y, width, height);
+    context.restore();
+  }
+
+  if (options.cursorIndicator) {
+    const indicator = options.cursorIndicator;
+    const pulse = indicator.pulsing
+      ? 1 + 0.12 * Math.sin((options.currentTime ?? 0) / 100)
+      : 1;
+
+    context.save();
+    context.globalAlpha = 0.65;
+    context.strokeStyle = indicator.color;
+    context.lineWidth = 1.5 / viewportZoom;
+    context.setLineDash([]);
+    context.beginPath();
+    context.arc(
+      indicator.point.x,
+      indicator.point.y,
+      indicator.radius * pulse,
+      0,
+      Math.PI * 2,
+    );
+    context.stroke();
     context.restore();
   }
 }

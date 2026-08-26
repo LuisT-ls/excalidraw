@@ -57,7 +57,7 @@ const THEME_OPTIONS: Array<{
 ];
 
 const menuActionClass =
-  "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800";
+  "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm text-slate-700 transition-colors duration-300 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800";
 
 export function Menu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -256,7 +256,7 @@ export function Menu() {
           aria-expanded={isOpen}
           title="Menu"
           onClick={() => setIsOpen((open) => !open)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-lg backdrop-blur transition-colors hover:bg-white dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-900"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-lg backdrop-blur transition-colors duration-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-900"
         >
           <span aria-hidden="true">☰</span>
         </button>
@@ -265,7 +265,7 @@ export function Menu() {
           <div
             role="menu"
             aria-label="Menu principal"
-            className="absolute left-0 top-12 z-30 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+            className="absolute left-0 top-12 z-30 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900"
           >
             <button
               type="button"
@@ -396,7 +396,7 @@ export function Menu() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="shortcuts-title"
-            className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+          className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-xl border border-slate-200 bg-white p-5 shadow-2xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900"
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 id="shortcuts-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">

@@ -97,7 +97,7 @@ function ConfirmDialogView({ request, onResolve }: ConfirmDialogViewProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[1px] dark:bg-black/60"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[1px] transition-colors duration-300 dark:bg-black/60"
       role="presentation"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) {
@@ -111,7 +111,7 @@ function ConfirmDialogView({ request, onResolve }: ConfirmDialogViewProps) {
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
-        className="motion-safe:animate-[confirm-dialog-in_160ms_ease-out] w-full max-w-md rounded-[19px_23px_21px_25px] border-2 border-slate-800 bg-[#fffefa] p-6 shadow-2xl dark:border-slate-300 dark:bg-slate-900"
+        className="motion-safe:animate-[confirm-dialog-in_160ms_ease-out] w-full max-w-md rounded-[19px_23px_21px_25px] border-2 border-slate-800 bg-[#fffefa] p-6 shadow-2xl transition-colors duration-300 dark:border-slate-300 dark:bg-slate-900"
       >
         <h2 id="confirm-dialog-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           {request.title}

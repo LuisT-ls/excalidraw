@@ -6,7 +6,16 @@ import {
   useRef,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { renderScene } from "@/features/editor/rendering/renderScene";
+import {
+  renderScene,
+  type CursorIndicator,
+} from "@/features/editor/rendering/renderScene";
+import {
+  ELEMENT_POP_DURATION_MS,
+  FIT_VIEWPORT_DURATION_MS,
+  easeOutCubic,
+  interpolateViewport,
+} from "@/features/editor/rendering/animation";
 import { measureText } from "@/features/editor/rendering/measureText";
 import {
   screenToWorld,
@@ -258,6 +267,11 @@ export function Canvas({
   const selectedElementIdsRef = useRef<ElementId[]>(selectedElementIds);
   const backgroundColorRef = useRef(backgroundColor);
   const viewportRef = useRef<Viewport>(viewport);
+  const activeToolRef = useRef<Tool>(activeTool);
+  const styleRef = useRef(style);
+  const recentlyCreatedElementsRef = useRef<Map<ElementId, number>>(new Map());
+  const cursorWorldPointRef = useRef<Point | null>(null);
+  const viewportTransitionRef = useRef<number | null>(null);
   const spacePressedRef = useRef(false);
   const panRef = useRef<{
     pointerId: number;
@@ -293,6 +307,12 @@ export function Canvas({
   elementsRef.current = elements;
   selectedElementIdsRef.current = selectedElementIds;
   backgroundColorRef.current = backgroundColor;
+  activeToolRef.current = activeTool;
+  styleRef.current = style;
+
+  const registerCreatedElement = (id: ElementId) => {
+    recentlyCreatedElementsRef.current.set(id, performance.now());
+  };
 
   useEffect(() => {
     if (!panRef.current) {
@@ -394,6 +414,12 @@ export function Canvas({
         elapsedMs,
       );
 
+      for (const [id, createdAt] of recentlyCreatedElementsRef.current) {
+        if (timestamp - createdAt >= ELEMENT_POP_DURATION_MS) {
+          recentlyCreatedElementsRef.current.delete(id);
+        }
+      }
+
       if (context) {
         const devicePixelRatio = window.devicePixelRatio || 1;
         const viewport = viewportRef.current;
@@ -426,6 +452,27 @@ export function Canvas({
                 end: marqueeRef.current.currentWorld,
               }
             : null,
+          {
+            currentTime: timestamp,
+            recentlyCreatedAt: recentlyCreatedElementsRef.current,
+            cursorIndicator:
+              cursorWorldPointRef.current &&
+              (activeToolRef.current === "pencil" ||
+                activeToolRef.current === "eraser")
+                ? ({
+                    point: cursorWorldPointRef.current,
+                    radius:
+                      activeToolRef.current === "eraser"
+                        ? Math.max(styleRef.current.strokeWidth / 2, 6)
+                        : Math.max(styleRef.current.strokeWidth / 2, 1),
+                    color:
+                      activeToolRef.current === "eraser"
+                        ? "#64748b"
+                        : styleRef.current.strokeColor,
+                    pulsing: activeToolRef.current === "eraser",
+                  } satisfies CursorIndicator)
+                : undefined,
+          },
         );
         drawEraseParticles(context, eraseParticlesRef.current);
       }
@@ -437,6 +484,9 @@ export function Canvas({
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      if (viewportTransitionRef.current !== null) {
+        cancelAnimationFrame(viewportTransitionRef.current);
+      }
       resizeObserver.disconnect();
       window.removeEventListener("resize", resizeCanvas);
     };
@@ -478,8 +528,35 @@ export function Canvas({
         offsetY: canvasRect.height / 2 - (bounds.y + bounds.height / 2) * nextZoom,
       };
 
-      viewportRef.current = nextViewport;
-      setViewport(nextViewport);
+      if (viewportTransitionRef.current !== null) {
+        cancelAnimationFrame(viewportTransitionRef.current);
+      }
+
+      const startViewport = { ...viewportRef.current };
+      const startedAt = performance.now();
+      const animateViewport = (timestamp: number) => {
+        const progress = Math.min(
+          1,
+          (timestamp - startedAt) / FIT_VIEWPORT_DURATION_MS,
+        );
+        const easedProgress = easeOutCubic(progress);
+        const interpolated = interpolateViewport(
+          startViewport,
+          nextViewport,
+          easedProgress,
+        );
+
+        viewportRef.current = interpolated;
+        setViewport(interpolated);
+
+        if (progress < 1) {
+          viewportTransitionRef.current = requestAnimationFrame(animateViewport);
+        } else {
+          viewportTransitionRef.current = null;
+        }
+      };
+
+      viewportTransitionRef.current = requestAnimationFrame(animateViewport);
     };
 
     window.addEventListener("whiteboard:zoom-to-fit", handleZoomToFit);
@@ -895,6 +972,7 @@ export function Canvas({
       };
 
       addElement(element);
+      registerCreatedElement(element.id);
       setSelectedElementIds([element.id]);
     }
 
@@ -1000,6 +1078,10 @@ export function Canvas({
 
     if (shouldPan) {
       event.preventDefault();
+      if (viewportTransitionRef.current !== null) {
+        cancelAnimationFrame(viewportTransitionRef.current);
+        viewportTransitionRef.current = null;
+      }
       lastSelectPointerDownRef.current = null;
       interactionRef.current = null;
       marqueeRef.current = null;
@@ -1029,6 +1111,9 @@ export function Canvas({
     event.preventDefault();
     const screenPoint = getCanvasPoint(event);
     const worldPoint = screenToWorld(screenPoint, viewportRef.current);
+    if (currentTool === "pencil" || currentTool === "eraser") {
+      cursorWorldPointRef.current = worldPoint;
+    }
     const hitElement = findElementAtPoint(worldPoint);
 
     if (currentTool === "select") {
@@ -1229,6 +1314,12 @@ export function Canvas({
     if (textEditingRef.current) {
       return;
     }
+
+    const pointerScreenPoint = getCanvasPoint(event);
+    cursorWorldPointRef.current = screenToWorld(
+      pointerScreenPoint,
+      viewportRef.current,
+    );
 
     if (activePointerIdRef.current === event.pointerId) {
       event.preventDefault();
@@ -1567,10 +1658,11 @@ export function Canvas({
         }
       }
 
-      if (element) {
+    if (element) {
         // A criação inteira é uma entrada: o preview nunca entra na store.
         commitHistoryEntry();
         addElement(element);
+        registerCreatedElement(element.id);
         setSelectedElementIds([element.id]);
         if (!toolLocked) {
           setActiveTool("select");
@@ -1654,6 +1746,11 @@ export function Canvas({
     }
 
     const cursor = getCanvasPoint(event);
+    if (viewportTransitionRef.current !== null) {
+      cancelAnimationFrame(viewportTransitionRef.current);
+      viewportTransitionRef.current = null;
+    }
+
     const currentViewport = viewportRef.current;
     const worldPoint = screenToWorld(cursor, currentViewport);
     const zoomFactor = Math.exp(-event.deltaY * 0.001);
@@ -1738,7 +1835,10 @@ export function Canvas({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={(event) => handlePointerUp(event, true)}
-        onPointerLeave={() => setHoveredResizeHandle(null)}
+        onPointerLeave={() => {
+          setHoveredResizeHandle(null);
+          cursorWorldPointRef.current = null;
+        }}
         onWheel={handleWheel}
         aria-label="Quadro branco"
       />
@@ -1763,7 +1863,7 @@ export function Canvas({
             }
           }}
           onBlur={() => finishTextEditing(true)}
-          className="pointer-events-none absolute z-20 box-border resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 outline-none shadow-none transition-[width,height] duration-75 focus:border-0 focus:bg-transparent focus:ring-0 dark:bg-transparent dark:focus:bg-transparent"
+          className="pointer-events-none absolute z-20 box-border resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 outline-none shadow-none transition-[width,height,background-color,color] duration-300 focus:border-0 focus:bg-transparent focus:ring-0 dark:bg-transparent dark:focus:bg-transparent"
           style={{
             left: textEditing.screenPoint.x,
             top: textEditing.screenPoint.y,
