@@ -6,7 +6,14 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
-import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Monitor,
+  Moon,
+  Sun,
+  type LucideIcon,
+} from "lucide-react";
 import { parseScene, removeSavedScene } from "@/features/editor/persistence/sceneStorage";
 import {
   exportSceneAsJson,
@@ -72,6 +79,7 @@ const THEME_OPTIONS: Array<{
 
 export function Menu({ onEnterPresentation }: MenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [customColor, setCustomColor] = useState("");
   const [shareStatus, setShareStatus] = useState<string | null>(null);
@@ -95,16 +103,30 @@ export function Menu({ onEnterPresentation }: MenuProps) {
   );
   const confirm = useConfirm();
 
+  const closeMenu = () => {
+    setIsOpen(false);
+    setIsExportMenuOpen(false);
+  };
+
+  const toggleMenu = () => {
+    if (isOpen) {
+      closeMenu();
+      return;
+    }
+
+    setIsOpen(true);
+  };
+
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       if (isOpen && !menuRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
+        closeMenu();
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        closeMenu();
         setIsShortcutsOpen(false);
       }
     };
@@ -121,8 +143,6 @@ export function Menu({ onEnterPresentation }: MenuProps) {
   useEffect(() => {
     setCustomColor(backgroundColor);
   }, [backgroundColor]);
-
-  const closeMenu = () => setIsOpen(false);
 
   const clearScene = async () => {
     if (isReadOnly) {
@@ -284,7 +304,7 @@ export function Menu({ onEnterPresentation }: MenuProps) {
   };
 
   const openShortcuts = () => {
-    setIsOpen(false);
+    closeMenu();
     setIsShortcutsOpen(true);
   };
 
@@ -326,7 +346,7 @@ export function Menu({ onEnterPresentation }: MenuProps) {
           aria-label="Abrir menu"
           aria-expanded={isOpen}
           title="Menu"
-          onClick={() => setIsOpen((open) => !open)}
+          onClick={toggleMenu}
           className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-lg backdrop-blur transition-colors duration-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-900"
         >
           <span aria-hidden="true">☰</span>
@@ -352,16 +372,23 @@ export function Menu({ onEnterPresentation }: MenuProps) {
             </ActionMenuItem>
             <ActionMenuItem
               disabled={elements.length === 0}
-              onClick={exportPng}
+              onClick={() => setIsExportMenuOpen((open) => !open)}
             >
-              Exportar imagem...
+              <span className="flex w-full items-center justify-between gap-2">
+                <span>Exportar imagem...</span>
+                {isExportMenuOpen ? (
+                  <ChevronUp size={15} aria-hidden="true" />
+                ) : (
+                  <ChevronDown size={15} aria-hidden="true" />
+                )}
+              </span>
             </ActionMenuItem>
-            <ActionMenuItem
-              disabled={elements.length === 0}
-              onClick={exportSvg}
-            >
-              Exportar SVG
-            </ActionMenuItem>
+            {isExportMenuOpen && elements.length > 0 && (
+              <div className="ml-2 mt-1 rounded-md bg-slate-50 p-1 dark:bg-slate-800/70">
+                <ActionMenuItem onClick={exportPng}>PNG</ActionMenuItem>
+                <ActionMenuItem onClick={exportSvg}>SVG</ActionMenuItem>
+              </div>
+            )}
             <ActionMenuItem
               disabled={elements.length === 0}
               onClick={shareScene}
