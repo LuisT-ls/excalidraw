@@ -9,13 +9,29 @@ import type {
   EllipseElement,
   TextElement,
 } from "../model/types";
+import { getRoundedRectanglePath } from "./roundedRectangle";
 
 type RoughCanvas = ReturnType<typeof rough.canvas>;
+
+export function getStrokeLineDash(
+  strokeStyle: "solid" | "dashed" | "dotted" = "solid",
+): number[] | undefined {
+  if (strokeStyle === "dashed") {
+    return [12, 8];
+  }
+
+  if (strokeStyle === "dotted") {
+    return [2, 6];
+  }
+
+  return undefined;
+}
 
 function roughOptions(element: ElementBase) {
   return {
     stroke: element.strokeColor,
     strokeWidth: element.strokeWidth,
+    strokeLineDash: getStrokeLineDash(element.strokeStyle),
     fill: element.fillColor ?? undefined,
     fillStyle: element.fillStyle,
     roughness: element.roughness,
@@ -28,13 +44,21 @@ export function renderRectangle(
   roughCanvas: RoughCanvas,
   element: RectangleElement,
 ) {
-  roughCanvas.rectangle(
-    0,
-    0,
-    element.width,
-    element.height,
-    roughOptions(element),
-  );
+  const options = roughOptions(element);
+
+  if (element.cornerStyle === "round") {
+    roughCanvas.path(
+      getRoundedRectanglePath(
+        element.width,
+        element.height,
+        Math.min(element.width, element.height) * 0.15,
+      ),
+      options,
+    );
+    return;
+  }
+
+  roughCanvas.rectangle(0, 0, element.width, element.height, options);
 }
 
 export function renderEllipse(
@@ -125,6 +149,15 @@ function drawFreehandOutline(
   context.closePath();
   context.fillStyle = element.strokeColor;
   context.fill();
+
+  const dash = getStrokeLineDash(element.strokeStyle);
+  if (dash) {
+    context.setLineDash(dash);
+    context.strokeStyle = element.strokeColor;
+    context.lineWidth = element.strokeWidth;
+    context.stroke();
+    context.setLineDash([]);
+  }
 }
 
 export function renderFreehand(
@@ -142,6 +175,14 @@ export function renderFreehand(
     );
     context.fillStyle = element.strokeColor;
     context.fill();
+    const dash = getStrokeLineDash(element.strokeStyle);
+    if (dash) {
+      context.setLineDash(dash);
+      context.strokeStyle = element.strokeColor;
+      context.lineWidth = element.strokeWidth;
+      context.stroke();
+      context.setLineDash([]);
+    }
     return;
   }
 

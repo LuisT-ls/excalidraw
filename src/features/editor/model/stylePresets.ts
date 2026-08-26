@@ -11,3 +11,23 @@ export const STROKE_WIDTHS = [
   { label: "Médio", value: 2 },
   { label: "Grosso", value: 4 },
 ] as const;
+
+export const FILL_PRESETS = [
+  { label: "Transparente", value: null },
+  { label: "Amarelo claro", value: "#fef3c7" },
+  { label: "Azul claro", value: "#dbeafe" },
+  { label: "Rosa claro", value: "#fce7f3" },
+  { label: "Verde claro", value: "#dcfce7" },
+] as const;
+
+export const STROKE_STYLES = [
+  { label: "Sólido", value: "solid" },
+  { label: "Tracejado", value: "dashed" },
+  { label: "Pontilhado", value: "dotted" },
+] as const;
+
+export const ROUGHNESS_PRESETS = [
+  { label: "Preciso", value: 1 },
+  { label: "Equilibrado", value: 1.4 },
+  { label: "Expressivo", value: 2.4 },
+] as const;

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { exampleElements } from "../model/exampleScene";
-import { duplicateSceneElement, reorderElements } from "./elementActions";
+import {
+  duplicateSceneElement,
+  moveElementsByOneLayer,
+  reorderElements,
+} from "./elementActions";
 
 describe("element actions", () => {
   it("duplica um elemento com novos identificadores e deslocamento", () => {
@@ -47,6 +51,55 @@ describe("element actions", () => {
       original[2].id,
       original[0].id,
       original[1].id,
+    ]);
+  });
+
+  it("move um elemento exatamente uma camada por vez", () => {
+    const original = exampleElements.slice(0, 4);
+    const forward = moveElementsByOneLayer(
+      original,
+      [original[1].id],
+      "forward",
+    );
+    const backward = moveElementsByOneLayer(
+      original,
+      [original[2].id],
+      "backward",
+    );
+
+    expect(forward.map((element) => element.id)).toEqual([
+      original[0].id,
+      original[2].id,
+      original[1].id,
+      original[3].id,
+    ]);
+    expect(backward.map((element) => element.id)).toEqual([
+      original[0].id,
+      original[2].id,
+      original[1].id,
+      original[3].id,
+    ]);
+    expect(original.map((element) => element.id)).toEqual([
+      "example-text",
+      "example-rectangle",
+      "example-ellipse",
+      "example-line",
+    ]);
+  });
+
+  it("move uma seleção contígua como bloco, sem alterar a ordem interna", () => {
+    const original = exampleElements.slice(0, 4);
+    const result = moveElementsByOneLayer(
+      original,
+      [original[1].id, original[2].id],
+      "forward",
+    );
+
+    expect(result.map((element) => element.id)).toEqual([
+      original[0].id,
+      original[3].id,
+      original[1].id,
+      original[2].id,
     ]);
   });
 });

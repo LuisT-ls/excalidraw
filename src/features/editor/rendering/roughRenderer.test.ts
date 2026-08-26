@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { renderText } from "./roughRenderer";
+import { getStrokeLineDash, renderText } from "./roughRenderer";
 import type { TextElement } from "../model/types";
 
 describe("renderText", () => {
@@ -16,6 +16,7 @@ describe("renderText", () => {
       rotation: 0,
       strokeColor: "#111827",
       strokeWidth: 2,
+      strokeStyle: "solid",
       fillColor: null,
       fillStyle: "none",
       opacity: 1,
@@ -39,5 +40,13 @@ describe("renderText", () => {
     expect(fillText.mock.calls[2][0]).toBe("terceira");
     expect(fillText.mock.calls[2][1]).toBe(0);
     expect(fillText.mock.calls[2][2]).toBeCloseTo(57.6);
+  });
+});
+
+describe("stroke styles", () => {
+  it("mapeia sólido, tracejado e pontilhado para os padrões de traço", () => {
+    expect(getStrokeLineDash("solid")).toBeUndefined();
+    expect(getStrokeLineDash("dashed")).toEqual([12, 8]);
+    expect(getStrokeLineDash("dotted")).toEqual([2, 6]);
   });
 });

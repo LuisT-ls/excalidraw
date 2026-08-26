@@ -30,6 +30,7 @@ interface RawExcalidrawElement {
   angle?: unknown;
   strokeColor?: unknown;
   strokeWidth?: unknown;
+  strokeStyle?: unknown;
   roughness?: unknown;
   seed?: unknown;
   opacity?: unknown;
@@ -48,6 +49,12 @@ interface RawExcalidrawElement {
 const DEFAULT_STROKE_COLOR = "#1f2937";
 const DEFAULT_STROKE_WIDTH = 2.5;
 const DEFAULT_ROUGHNESS = 1.4;
+
+function strokeStyleFromExcalidraw(
+  value: unknown,
+): "solid" | "dashed" | "dotted" {
+  return value === "dashed" || value === "dotted" ? value : "solid";
+}
 
 function asRecord(value: unknown): RawExcalidrawElement | null {
   return value && typeof value === "object"
@@ -115,6 +122,7 @@ function createBase(element: RawExcalidrawElement): ElementBase {
         ? element.strokeColor
         : DEFAULT_STROKE_COLOR,
     strokeWidth: positiveNumberOr(element.strokeWidth, DEFAULT_STROKE_WIDTH),
+    strokeStyle: strokeStyleFromExcalidraw(element.strokeStyle),
     ...fillFromExcalidraw(element.backgroundColor),
     opacity: opacityFromExcalidraw(element.opacity),
     seed: numberOr(element.seed, generateSeed()),
@@ -128,6 +136,7 @@ function convertRectangle(
   return {
     ...createBase(element),
     type: "rectangle",
+    cornerStyle: "sharp",
     width: numberOr(element.width, 0),
     height: numberOr(element.height, 0),
   };

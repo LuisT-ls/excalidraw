@@ -13,10 +13,12 @@ const base = {
   rotation: 0,
   strokeColor: "#000",
   strokeWidth: 2,
+  strokeStyle: "solid" as const,
   fillColor: null,
   fillStyle: "none" as const,
   opacity: 1,
   roughness: 1,
+  cornerStyle: "sharp" as const,
   seed: 1,
 };
 

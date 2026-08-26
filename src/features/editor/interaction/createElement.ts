@@ -14,8 +14,12 @@ export type DrawingTool = ShapeDrawingTool | "pencil";
 export interface ElementCreationStyle {
   strokeColor: string;
   strokeWidth: number;
+  strokeStyle?: "solid" | "dashed" | "dotted";
   fillColor: string | null;
   fillStyle: FillStyle;
+  opacity?: number;
+  roughness?: number;
+  cornerStyle?: "sharp" | "round";
 }
 
 type CreatedElement =
@@ -48,11 +52,12 @@ export function createElementFromDrag(
     rotation: 0,
     strokeColor: style.strokeColor,
     strokeWidth: style.strokeWidth,
+    strokeStyle: style.strokeStyle ?? "solid",
     fillColor: style.fillColor,
     fillStyle: style.fillStyle,
-    opacity: 1,
+    opacity: style.opacity ?? 1,
     seed,
-    roughness: DEFAULT_ROUGHNESS,
+    roughness: style.roughness ?? DEFAULT_ROUGHNESS,
   };
 
   if (tool === "rectangle" || tool === "ellipse") {
@@ -61,6 +66,7 @@ export function createElementFromDrag(
     return {
       ...base,
       type: tool,
+      cornerStyle: style.cornerStyle ?? "sharp",
       ...bounds,
     };
   }
@@ -94,11 +100,12 @@ export function createFreehandElement(
     rotation: 0,
     strokeColor: style.strokeColor,
     strokeWidth: style.strokeWidth,
+    strokeStyle: style.strokeStyle ?? "solid",
     fillColor: null,
     fillStyle: "none",
-    opacity: 1,
+    opacity: style.opacity ?? 1,
     seed,
-    roughness: DEFAULT_ROUGHNESS,
+    roughness: style.roughness ?? DEFAULT_ROUGHNESS,
     points: points.map((point) => ({ ...point })),
   };
 }

@@ -6,10 +6,12 @@ const base = {
   rotation: 0,
   strokeColor: "#111827",
   strokeWidth: 2,
+  strokeStyle: "solid" as const,
   fillColor: null,
   fillStyle: "none" as const,
   opacity: 1,
   roughness: 1.4,
+  cornerStyle: "sharp" as const,
 };
 
 function rectangle(

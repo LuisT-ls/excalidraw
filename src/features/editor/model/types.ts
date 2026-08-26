@@ -20,6 +20,8 @@ export type Tool =
   | "eraser";
 
 export type FillStyle = "none" | "solid";
+export type StrokeStyle = "solid" | "dashed" | "dotted";
+export type CornerStyle = "sharp" | "round";
 
 export interface Point {
   x: number;
@@ -47,6 +49,7 @@ export interface ElementBase {
   rotation: number;
   strokeColor: string;
   strokeWidth: number;
+  strokeStyle: StrokeStyle;
   fillColor: string | null;
   fillStyle: FillStyle;
   opacity: number;
@@ -56,6 +59,7 @@ export interface ElementBase {
 
 export interface RectangleElement extends ElementBase {
   type: "rectangle";
+  cornerStyle: CornerStyle;
   width: number;
   height: number;
 }

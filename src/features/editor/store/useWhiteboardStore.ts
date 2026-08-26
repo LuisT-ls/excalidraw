@@ -1,13 +1,28 @@
 import { create } from "zustand";
-import type { ElementId, FillStyle, SceneElement, Tool, Viewport } from "../model/types";
+import type {
+  CornerStyle,
+  ElementId,
+  FillStyle,
+  SceneElement,
+  StrokeStyle,
+  Tool,
+  Viewport,
+} from "../model/types";
 import { cloneSceneElement, cloneSceneElements } from "../model/clone";
-import { reorderElements } from "../interaction/elementActions";
+import {
+  moveElementsByOneLayer,
+  reorderElements,
+} from "../interaction/elementActions";
 
 export interface EditorStyle {
   strokeColor: string;
   strokeWidth: number;
+  strokeStyle: StrokeStyle;
   fillColor: string | null;
   fillStyle: FillStyle;
+  opacity: number;
+  roughness: number;
+  cornerStyle: CornerStyle;
 }
 
 export interface WhiteboardState {
@@ -33,6 +48,8 @@ export interface WhiteboardState {
   moveElementToBack: (id: ElementId) => void;
   moveElementsToFront: (ids: ElementId[]) => void;
   moveElementsToBack: (ids: ElementId[]) => void;
+  moveElementsForward: (ids: ElementId[]) => void;
+  moveElementsBackward: (ids: ElementId[]) => void;
   setViewport: (
     viewport: Viewport | ((current: Viewport) => Viewport),
   ) => void;
@@ -49,8 +66,12 @@ const MAX_HISTORY_SIZE = 50;
 const initialStyle: EditorStyle = {
   strokeColor: "#1f2937",
   strokeWidth: 2.5,
+  strokeStyle: "solid",
   fillColor: null,
   fillStyle: "none",
+  opacity: 1,
+  roughness: 1.4,
+  cornerStyle: "sharp",
 };
 
 const initialViewport: Viewport = {
@@ -141,6 +162,14 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
 
       return { elements };
     }),
+  moveElementsForward: (ids) =>
+    set((state) => ({
+      elements: moveElementsByOneLayer(state.elements, ids, "forward"),
+    })),
+  moveElementsBackward: (ids) =>
+    set((state) => ({
+      elements: moveElementsByOneLayer(state.elements, ids, "backward"),
+    })),
   setViewport: (viewport) =>
     set((state) => ({
       viewport:
