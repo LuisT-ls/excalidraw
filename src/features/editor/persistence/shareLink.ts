@@ -1,7 +1,340 @@
 import { parseScene, type PersistedScene } from "./sceneStorage";
+import type {
+  ArrowElement,
+  CornerStyle,
+  EllipseElement,
+  ElementType,
+  FillStyle,
+  FreehandElement,
+  LineElement,
+  RectangleElement,
+  SceneElement,
+  StrokeStyle,
+  TextElement,
+} from "../model/types";
 
 export const SHARE_HASH_PREFIX = "#data=";
 export const SHARE_LINK_WARNING_LENGTH = 6000;
+const COMPACT_SHARE_PREFIX = "v2.";
+
+type CompactElement = unknown[];
+
+interface CompactScenePayload {
+  e: CompactElement[];
+  b?: string;
+}
+
+const ELEMENT_TYPE_CODES: Record<ElementType, string> = {
+  rectangle: "r",
+  ellipse: "e",
+  line: "l",
+  arrow: "a",
+  text: "t",
+  freehand: "f",
+};
+
+const ELEMENT_TYPES_BY_CODE: Record<string, ElementType> = Object.fromEntries(
+  Object.entries(ELEMENT_TYPE_CODES).map(([type, code]) => [code, type]),
+) as Record<string, ElementType>;
+
+const STROKE_STYLE_CODES: Record<StrokeStyle, number> = {
+  solid: 0,
+  dashed: 1,
+  dotted: 2,
+};
+
+const STROKE_STYLES_BY_CODE: Record<number, StrokeStyle> = {
+  0: "solid",
+  1: "dashed",
+  2: "dotted",
+};
+
+const FILL_STYLE_CODES: Record<FillStyle, number> = {
+  none: 0,
+  solid: 1,
+};
+
+const FILL_STYLES_BY_CODE: Record<number, FillStyle> = {
+  0: "none",
+  1: "solid",
+};
+
+const CORNER_STYLE_CODES: Record<CornerStyle, number> = {
+  sharp: 0,
+  round: 1,
+};
+
+const CORNER_STYLES_BY_CODE: Record<number, CornerStyle> = {
+  0: "sharp",
+  1: "round",
+};
+
+const FONT_WEIGHT_CODES: Record<TextElement["fontWeight"], number> = {
+  normal: 0,
+  bold: 1,
+};
+
+const FONT_WEIGHTS_BY_CODE: Record<number, TextElement["fontWeight"]> = {
+  0: "normal",
+  1: "bold",
+};
+
+const TEXT_ALIGN_CODES: Record<TextElement["textAlign"], number> = {
+  left: 0,
+  center: 1,
+  right: 2,
+};
+
+const TEXT_ALIGNS_BY_CODE: Record<number, TextElement["textAlign"]> = {
+  0: "left",
+  1: "center",
+  2: "right",
+};
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isPointArray(value: unknown): value is number[] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    value.length % 2 === 0 &&
+    value.every(isFiniteNumber)
+  );
+}
+
+function packPoints(points: Array<{ x: number; y: number }>): number[] {
+  return points.flatMap((point) => [point.x, point.y]);
+}
+
+function unpackPoints(value: unknown): Array<{ x: number; y: number }> | null {
+  if (!isPointArray(value)) {
+    return null;
+  }
+
+  const points = [];
+  for (let index = 0; index < value.length; index += 2) {
+    points.push({ x: value[index], y: value[index + 1] });
+  }
+
+  return points;
+}
+
+/**
+ * Shares use a compact transport representation, while the decoded result is
+ * still the regular PersistedScene. Short keys, enum codes and flat point
+ * arrays remove a substantial amount of repeated JSON overhead before gzip.
+ * Exported JSON files keep their readable canonical format.
+ */
+function packElement(element: SceneElement): CompactElement {
+  const base = [
+    ELEMENT_TYPE_CODES[element.type],
+    element.id,
+    element.x,
+    element.y,
+    element.rotation,
+    element.strokeColor,
+    element.strokeWidth,
+    STROKE_STYLE_CODES[element.strokeStyle],
+    element.fillColor,
+    FILL_STYLE_CODES[element.fillStyle],
+    element.opacity,
+    element.seed,
+    element.roughness,
+  ];
+
+  switch (element.type) {
+    case "rectangle":
+      return [
+        ...base,
+        CORNER_STYLE_CODES[element.cornerStyle],
+        element.width,
+        element.height,
+      ];
+    case "ellipse":
+      return [...base, element.width, element.height];
+    case "line":
+    case "arrow":
+    case "freehand":
+      return [...base, packPoints(element.points)];
+    case "text":
+      return [
+        ...base,
+        element.text,
+        element.width,
+        element.height,
+        element.fontSize,
+        element.fontFamily,
+        FONT_WEIGHT_CODES[element.fontWeight],
+        TEXT_ALIGN_CODES[element.textAlign],
+      ];
+  }
+}
+
+function unpackElement(value: unknown): SceneElement | null {
+  if (!Array.isArray(value) || value.length < 14) {
+    return null;
+  }
+
+  const [
+    typeCode,
+    id,
+    x,
+    y,
+    rotation,
+    strokeColor,
+    strokeWidth,
+    strokeStyleCode,
+    fillColor,
+    fillStyleCode,
+    opacity,
+    seed,
+    roughness,
+  ] = value;
+  const type = typeof typeCode === "string" ? ELEMENT_TYPES_BY_CODE[typeCode] : undefined;
+  const strokeStyle =
+    isFiniteNumber(strokeStyleCode) ? STROKE_STYLES_BY_CODE[strokeStyleCode] : undefined;
+  const fillStyle =
+    isFiniteNumber(fillStyleCode) ? FILL_STYLES_BY_CODE[fillStyleCode] : undefined;
+
+  if (
+    !type ||
+    typeof id !== "string" ||
+    !isFiniteNumber(x) ||
+    !isFiniteNumber(y) ||
+    !isFiniteNumber(rotation) ||
+    typeof strokeColor !== "string" ||
+    !isFiniteNumber(strokeWidth) ||
+    !strokeStyle ||
+    (fillColor !== null && typeof fillColor !== "string") ||
+    !fillStyle ||
+    !isFiniteNumber(opacity) ||
+    !isFiniteNumber(seed) ||
+    !isFiniteNumber(roughness)
+  ) {
+    return null;
+  }
+
+  const base = {
+    id,
+    type,
+    x,
+    y,
+    rotation,
+    strokeColor,
+    strokeWidth,
+    strokeStyle,
+    fillColor,
+    fillStyle,
+    opacity,
+    seed,
+    roughness,
+  };
+
+  if (type === "rectangle") {
+    const [cornerStyleCode, width, height] = value.slice(13);
+    const cornerStyle =
+      isFiniteNumber(cornerStyleCode)
+        ? CORNER_STYLES_BY_CODE[cornerStyleCode]
+        : undefined;
+
+    return cornerStyle && isFiniteNumber(width) && isFiniteNumber(height)
+      ? ({ ...base, type, cornerStyle, width, height } as RectangleElement)
+      : null;
+  }
+
+  if (type === "ellipse") {
+    const [width, height] = value.slice(13);
+    return isFiniteNumber(width) && isFiniteNumber(height)
+      ? ({ ...base, type, width, height } as EllipseElement)
+      : null;
+  }
+
+  if (type === "line" || type === "arrow" || type === "freehand") {
+    const points = unpackPoints(value[13]);
+    if (!points || (type !== "freehand" && points.length < 2)) {
+      return null;
+    }
+
+    return {
+      ...base,
+      type,
+      points,
+    } as LineElement | ArrowElement | FreehandElement;
+  }
+
+  const [text, width, height, fontSize, fontFamily, fontWeightCode, textAlignCode] =
+    value.slice(13);
+  const fontWeight =
+    isFiniteNumber(fontWeightCode) ? FONT_WEIGHTS_BY_CODE[fontWeightCode] : undefined;
+  const textAlign =
+    isFiniteNumber(textAlignCode) ? TEXT_ALIGNS_BY_CODE[textAlignCode] : undefined;
+
+  return typeof text === "string" &&
+    isFiniteNumber(width) &&
+    isFiniteNumber(height) &&
+    isFiniteNumber(fontSize) &&
+    typeof fontFamily === "string" &&
+    fontWeight &&
+    textAlign
+    ? ({
+        ...base,
+        type,
+        text,
+        width,
+        height,
+        fontSize,
+        fontFamily,
+        fontWeight,
+        textAlign,
+      } as TextElement)
+    : null;
+}
+
+function packScene(scene: PersistedScene): CompactScenePayload {
+  const packed: CompactScenePayload = {
+    e: scene.elements.map(packElement),
+  };
+
+  if (scene.backgroundColor !== undefined) {
+    packed.b = scene.backgroundColor;
+  }
+
+  return packed;
+}
+
+function unpackScene(value: unknown): PersistedScene | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const payload = value as Partial<CompactScenePayload>;
+  if (!Array.isArray(payload.e)) {
+    return null;
+  }
+
+  const elements = payload.e.map(unpackElement);
+  if (elements.some((element) => element === null)) {
+    return null;
+  }
+
+  if (payload.b !== undefined && typeof payload.b !== "string") {
+    return null;
+  }
+
+  const scene: PersistedScene = {
+    type: "whiteboard-scene",
+    version: 1,
+    elements: elements as SceneElement[],
+  };
+
+  if (payload.b !== undefined) {
+    scene.backgroundColor = payload.b;
+  }
+
+  return parseScene(JSON.stringify(scene));
+}
 
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -47,7 +380,9 @@ export async function encodeSharedScene(scene: PersistedScene): Promise<string> 
 
   const { CompressionStream: BrowserCompressionStream } =
     getCompressionStreams();
-  const input = new TextEncoder().encode(JSON.stringify(scene));
+  const input = new TextEncoder().encode(
+    JSON.stringify(packScene(scene)),
+  );
   const compressedStream = new Blob([input])
     .stream()
     .pipeThrough(new BrowserCompressionStream("gzip"));
@@ -55,7 +390,7 @@ export async function encodeSharedScene(scene: PersistedScene): Promise<string> 
     await new Response(compressedStream).arrayBuffer(),
   );
 
-  return bytesToBase64Url(compressed);
+  return `${COMPACT_SHARE_PREFIX}${bytesToBase64Url(compressed)}`;
 }
 
 export async function decodeSharedScene(encoded: string): Promise<PersistedScene | null> {
@@ -66,11 +401,21 @@ export async function decodeSharedScene(encoded: string): Promise<PersistedScene
   try {
     const { DecompressionStream: BrowserDecompressionStream } =
       getCompressionStreams();
-    const compressed = base64UrlToBytes(encoded);
+    const isCompact = encoded.startsWith(COMPACT_SHARE_PREFIX);
+    const payload = isCompact
+      ? encoded.slice(COMPACT_SHARE_PREFIX.length)
+      : encoded;
+    const compressed = base64UrlToBytes(payload);
     const decompressedStream = new Blob([compressed])
       .stream()
       .pipeThrough(new BrowserDecompressionStream("gzip"));
     const raw = await new Response(decompressedStream).text();
+
+    if (isCompact) {
+      return unpackScene(JSON.parse(raw));
+    }
+
+    // Links generated before the compact format remain readable.
     return parseScene(raw);
   } catch (error) {
     console.warn("Não foi possível abrir o link compartilhado.", error);
