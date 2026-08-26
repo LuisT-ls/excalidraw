@@ -21,6 +21,19 @@ describe("element actions", () => {
     expect(duplicate).not.toHaveProperty("id", original.id);
   });
 
+  it("aceita deslocamento independente por eixo para colar numa posição", () => {
+    const original = exampleElements[1];
+    const duplicate = duplicateSceneElement(original, "paste", 1000, {
+      x: 45,
+      y: -12,
+    });
+
+    expect(duplicate).toMatchObject({
+      x: original.x + 45,
+      y: original.y - 12,
+    });
+  });
+
   it("reordena para frente e para trás sem mutar o array original", () => {
     const original = exampleElements.slice(0, 3);
     const front = reorderElements(original, original[0].id, "front");

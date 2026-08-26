@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import {
   renderScene,
@@ -74,6 +75,11 @@ import {
 } from "@/features/editor/model/ids";
 import { cloneSceneElement } from "@/features/editor/model/clone";
 import { duplicateSceneElement } from "@/features/editor/interaction/elementActions";
+import { ContextMenu } from "@/components/whiteboard/ContextMenu";
+import {
+  ActionMenuDivider,
+  ActionMenuItem,
+} from "@/components/ui/ActionMenu";
 import {
   getElementsIntersectingBounds,
   normalizeSelectionBounds,
@@ -185,6 +191,12 @@ interface LastSelectPointerDown {
   elementId: ElementId | null;
 }
 
+interface ContextMenuState {
+  kind: "element" | "empty";
+  position: Point;
+  worldPoint: Point;
+}
+
 const RESIZE_HANDLES: ResizeHandle[] = [
   "top-left",
   "top-right",
@@ -255,6 +267,12 @@ export function Canvas({
   const moveElementsToBack = useWhiteboardStore(
     (state) => state.moveElementsToBack,
   );
+  const moveElementsForward = useWhiteboardStore(
+    (state) => state.moveElementsForward,
+  );
+  const moveElementsBackward = useWhiteboardStore(
+    (state) => state.moveElementsBackward,
+  );
   const commitHistoryEntry = useWhiteboardStore(
     (state) => state.commitHistoryEntry,
   );
@@ -291,6 +309,9 @@ export function Canvas({
   } | null>(null);
   const eraseParticlesRef = useRef<EraseParticle[]>([]);
   const [textEditing, setTextEditing] = useState<TextEditingState | null>(
+    null,
+  );
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(
     null,
   );
   const textEditingRef = useRef<TextEditingState | null>(null);
@@ -668,6 +689,14 @@ export function Canvas({
         return;
       }
 
+      if (isModifierPressed && key === "a") {
+        event.preventDefault();
+        const ids = elementsRef.current.map((element) => element.id);
+        selectedElementIdsRef.current = ids;
+        setSelectedElementIds(ids);
+        return;
+      }
+
       if (
         isModifierPressed &&
         event.shiftKey &&
@@ -775,6 +804,131 @@ export function Canvas({
     }
 
     return null;
+  };
+
+  const duplicateSelectedFromContext = () => {
+    const selected = elementsRef.current.filter((element) =>
+      selectedElementIdsRef.current.includes(element.id),
+    );
+
+    if (selected.length === 0) {
+      return;
+    }
+
+    const duplicates = selected.map((element) =>
+      duplicateSceneElement(
+        element,
+        generateElementId(),
+        generateSeed(),
+        DUPLICATE_OFFSET_WORLD,
+      ),
+    );
+
+    commitHistoryEntry();
+    for (const duplicate of duplicates) {
+      addElement(duplicate);
+    }
+    setSelectedElementIds(duplicates.map((element) => element.id));
+  };
+
+  const copySelectedFromContext = () => {
+    clipboardElements = elementsRef.current
+      .filter((element) => selectedElementIdsRef.current.includes(element.id))
+      .map((element) => cloneSceneElement(element));
+  };
+
+  const pasteFromContext = (worldPoint: Point) => {
+    if (clipboardElements.length === 0) {
+      return;
+    }
+
+    const clipboardBounds = getSceneBounds(clipboardElements);
+    const offset: Point = clipboardBounds
+      ? {
+          x: worldPoint.x - clipboardBounds.x,
+          y: worldPoint.y - clipboardBounds.y,
+        }
+      : { x: DUPLICATE_OFFSET_WORLD, y: DUPLICATE_OFFSET_WORLD };
+    const pasted = clipboardElements.map((element) =>
+      duplicateSceneElement(
+        element,
+        generateElementId(),
+        generateSeed(),
+        offset,
+      ),
+    );
+
+    commitHistoryEntry();
+    for (const element of pasted) {
+      addElement(element);
+    }
+    setSelectedElementIds(pasted.map((element) => element.id));
+  };
+
+  const deleteSelectedFromContext = () => {
+    const selectedIds = selectedElementIdsRef.current.filter((id) =>
+      elementsRef.current.some((element) => element.id === id),
+    );
+
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    commitHistoryEntry();
+    for (const id of selectedIds) {
+      removeElement(id);
+    }
+    setSelectedElementIds([]);
+  };
+
+  const reorderSelectedFromContext = (
+    direction: "front" | "back" | "forward" | "backward",
+  ) => {
+    const selectedIds = selectedElementIdsRef.current;
+
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    commitHistoryEntry();
+    if (direction === "front") {
+      moveElementsToFront(selectedIds);
+    } else if (direction === "back") {
+      moveElementsToBack(selectedIds);
+    } else if (direction === "forward") {
+      moveElementsForward(selectedIds);
+    } else {
+      moveElementsBackward(selectedIds);
+    }
+  };
+
+  const selectAllFromContext = () => {
+    setSelectedElementIds(elementsRef.current.map((element) => element.id));
+  };
+
+  const handleContextMenu = (event: ReactMouseEvent<HTMLCanvasElement>) => {
+    if (activeToolRef.current !== "select" || textEditingRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const screenPoint = getCanvasPoint(event);
+    const worldPoint = screenToWorld(screenPoint, viewportRef.current);
+    const hitElement = findElementAtPoint(worldPoint);
+
+    if (hitElement) {
+      if (!selectedElementIdsRef.current.includes(hitElement.id)) {
+        selectedElementIdsRef.current = [hitElement.id];
+        setSelectedElementIds([hitElement.id]);
+      }
+      setContextMenu({ kind: "element", position: screenPoint, worldPoint });
+      return;
+    }
+
+    selectedElementIdsRef.current = [];
+    setSelectedElementIds([]);
+    setContextMenu({ kind: "empty", position: screenPoint, worldPoint });
   };
 
   const findSelectedSingleElement = () => {
@@ -1804,8 +1958,18 @@ export function Canvas({
     ? Math.max(
         28,
         textInputMetrics.height * textEditing.viewportZoom + 8,
-      )
+    )
     : undefined;
+
+  const contextSelectedIndexes = selectedElementIds
+    .map((id) => elements.findIndex((element) => element.id === id))
+    .filter((index) => index >= 0);
+  const canMoveContextForward =
+    contextSelectedIndexes.length > 0 &&
+    contextSelectedIndexes[contextSelectedIndexes.length - 1] <
+      elements.length - 1;
+  const canMoveContextBackward =
+    contextSelectedIndexes.length > 0 && contextSelectedIndexes[0] > 0;
 
   return (
     <div className="relative h-full w-full">
@@ -1840,8 +2004,123 @@ export function Canvas({
           cursorWorldPointRef.current = null;
         }}
         onWheel={handleWheel}
+        onContextMenu={handleContextMenu}
         aria-label="Quadro branco"
       />
+
+      {contextMenu && (
+        <ContextMenu
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+        >
+          {contextMenu.kind === "element" ? (
+            <>
+              <ActionMenuItem
+                onClick={() => {
+                  duplicateSelectedFromContext();
+                  setContextMenu(null);
+                }}
+              >
+                Duplicar
+              </ActionMenuItem>
+              <ActionMenuItem
+                onClick={() => {
+                  copySelectedFromContext();
+                  setContextMenu(null);
+                }}
+              >
+                Copiar
+              </ActionMenuItem>
+              <ActionMenuItem
+                destructive
+                onClick={() => {
+                  deleteSelectedFromContext();
+                  setContextMenu(null);
+                }}
+              >
+                Deletar
+              </ActionMenuItem>
+              <ActionMenuDivider />
+              <ActionMenuItem
+                disabled={!canMoveContextForward}
+                onClick={() => {
+                  reorderSelectedFromContext("front");
+                  setContextMenu(null);
+                }}
+              >
+                Trazer para frente
+              </ActionMenuItem>
+              <ActionMenuItem
+                disabled={!canMoveContextForward}
+                onClick={() => {
+                  reorderSelectedFromContext("forward");
+                  setContextMenu(null);
+                }}
+              >
+                Avançar uma camada
+              </ActionMenuItem>
+              <ActionMenuItem
+                disabled={!canMoveContextBackward}
+                onClick={() => {
+                  reorderSelectedFromContext("backward");
+                  setContextMenu(null);
+                }}
+              >
+                Recuar uma camada
+              </ActionMenuItem>
+              <ActionMenuItem
+                disabled={!canMoveContextBackward}
+                onClick={() => {
+                  reorderSelectedFromContext("back");
+                  setContextMenu(null);
+                }}
+              >
+                Mandar para trás
+              </ActionMenuItem>
+            </>
+          ) : (
+            <>
+              <ActionMenuItem
+                disabled={clipboardElements.length === 0}
+                onClick={() => {
+                  pasteFromContext(contextMenu.worldPoint);
+                  setContextMenu(null);
+                }}
+              >
+                Colar aqui
+              </ActionMenuItem>
+              <ActionMenuItem
+                disabled={elements.length === 0}
+                onClick={() => {
+                  selectAllFromContext();
+                  setContextMenu(null);
+                }}
+              >
+                Selecionar tudo
+              </ActionMenuItem>
+              <ActionMenuDivider />
+              <ActionMenuItem
+                disabled={elements.length === 0}
+                onClick={() => {
+                  window.dispatchEvent(new Event("whiteboard:zoom-to-fit"));
+                  setContextMenu(null);
+                }}
+              >
+                Ajustar
+              </ActionMenuItem>
+              <ActionMenuItem
+                destructive
+                onClick={() => {
+                  setContextMenu(null);
+                  window.dispatchEvent(new Event("whiteboard:clear-scene"));
+                }}
+              >
+                Limpar a tela
+              </ActionMenuItem>
+            </>
+          )}
+        </ContextMenu>
+      )}
 
       {textEditing && (
         <textarea

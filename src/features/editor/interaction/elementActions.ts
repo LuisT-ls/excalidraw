@@ -1,5 +1,5 @@
 import { cloneSceneElement } from "../model/clone";
-import type { ElementId, SceneElement } from "../model/types";
+import type { ElementId, Point, SceneElement } from "../model/types";
 
 export type LayerDirection = "front" | "back";
 export type LayerStepDirection = "forward" | "backward";
@@ -8,16 +8,18 @@ export function duplicateSceneElement(
   element: SceneElement,
   id: ElementId,
   seed: number,
-  offset = 20,
+  offset: number | Point = 20,
 ): SceneElement {
   const duplicate = cloneSceneElement(element);
+  const offsetX = typeof offset === "number" ? offset : offset.x;
+  const offsetY = typeof offset === "number" ? offset : offset.y;
 
   return {
     ...duplicate,
     id,
     seed,
-    x: duplicate.x + offset,
-    y: duplicate.y + offset,
+    x: duplicate.x + offsetX,
+    y: duplicate.y + offsetY,
   };
 }
 

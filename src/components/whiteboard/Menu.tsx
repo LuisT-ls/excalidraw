@@ -19,6 +19,10 @@ import {
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useTheme, type Theme } from "@/components/theme/ThemeProvider";
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
+import {
+  ActionMenuDivider,
+  ActionMenuItem,
+} from "@/components/ui/ActionMenu";
 
 const BACKGROUND_PRESETS = [
   { label: "Branco", value: "#ffffff" },
@@ -41,6 +45,7 @@ const SHORTCUTS = [
   ["Ctrl/Cmd + Shift + Z ou Y", "Refazer"],
   ["Ctrl/Cmd + D", "Duplicar"],
   ["Ctrl/Cmd + C / V", "Copiar / colar"],
+  ["Ctrl/Cmd + A", "Selecionar tudo"],
   ["Ctrl/Cmd + Shift + ] / [", "Trazer para frente / enviar para trás"],
   ["Delete / Backspace", "Remover selecionado"],
   ["Shift ao rotacionar", "Ajustar em incrementos de 15°"],
@@ -55,9 +60,6 @@ const THEME_OPTIONS: Array<{
   { value: "dark", label: "Escuro", icon: Moon },
   { value: "system", label: "Sistema", icon: Monitor },
 ];
-
-const menuActionClass =
-  "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm text-slate-700 transition-colors duration-300 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800";
 
 export function Menu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -129,6 +131,21 @@ export function Menu() {
     setSelectedElementIds([]);
     removeSavedScene();
   };
+
+  useEffect(() => {
+    const handleClearSceneRequest = () => {
+      void clearScene();
+    };
+
+    window.addEventListener("whiteboard:clear-scene", handleClearSceneRequest);
+
+    return () => {
+      window.removeEventListener(
+        "whiteboard:clear-scene",
+        handleClearSceneRequest,
+      );
+    };
+  }, [clearScene]);
 
   const handleImportChange = async (
     event: ChangeEvent<HTMLInputElement>,
@@ -267,50 +284,36 @@ export function Menu() {
             aria-label="Menu principal"
             className="absolute left-0 top-12 z-30 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900"
           >
-            <button
-              type="button"
-              role="menuitem"
+            <ActionMenuItem
               onClick={() => importInputRef.current?.click()}
-              className={menuActionClass}
             >
               Abrir
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            </ActionMenuItem>
+            <ActionMenuItem
               disabled={elements.length === 0}
               onClick={exportJson}
-              className={`${menuActionClass} disabled:cursor-not-allowed disabled:text-slate-300 dark:disabled:text-slate-600`}
             >
               Salvar como...
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            </ActionMenuItem>
+            <ActionMenuItem
               disabled={elements.length === 0}
               onClick={exportPng}
-              className={`${menuActionClass} disabled:cursor-not-allowed disabled:text-slate-300 dark:disabled:text-slate-600`}
             >
               Exportar imagem...
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            </ActionMenuItem>
+            <ActionMenuItem
               onClick={clearScene}
-              className={`${menuActionClass} text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40`}
+              destructive
             >
               Limpar a tela
-            </button>
-            <button
-              type="button"
-              role="menuitem"
+            </ActionMenuItem>
+            <ActionMenuItem
               onClick={openShortcuts}
-              className={menuActionClass}
             >
               Atalhos de teclado
-            </button>
+            </ActionMenuItem>
 
-            <div className="my-2 border-t border-slate-200 dark:border-slate-700" />
+            <ActionMenuDivider />
             <div className="px-2 py-1">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Fundo da tela
@@ -345,7 +348,7 @@ export function Menu() {
                 />
               </label>
             </div>
-            <div className="my-2 border-t border-slate-200 dark:border-slate-700" />
+            <ActionMenuDivider />
             <div className="px-2 py-1">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Tema
