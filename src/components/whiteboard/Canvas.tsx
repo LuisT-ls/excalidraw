@@ -20,6 +20,12 @@ import {
 } from "@/features/editor/interaction/createElement";
 import { getEraserHitIds } from "@/features/editor/interaction/eraser";
 import {
+  drawEraseParticles,
+  spawnEraseParticles,
+  updateEraseParticles,
+  type EraseParticle,
+} from "@/features/editor/interaction/eraseParticles";
+import {
   getLocalBounds,
   hitTestElement,
   localToWorldPoint,
@@ -269,6 +275,7 @@ export function Canvas({
     removedIds: Set<ElementId>;
     historyCommitted: boolean;
   } | null>(null);
+  const eraseParticlesRef = useRef<EraseParticle[]>([]);
   const [textEditing, setTextEditing] = useState<TextEditingState | null>(
     null,
   );
@@ -375,8 +382,17 @@ export function Canvas({
 
     let animationFrameId = 0;
 
-    const draw = () => {
+    let previousFrameTime: number | null = null;
+
+    const draw = (timestamp: number) => {
       const context = canvas.getContext("2d");
+      const elapsedMs =
+        previousFrameTime === null ? 0 : timestamp - previousFrameTime;
+      previousFrameTime = timestamp;
+      eraseParticlesRef.current = updateEraseParticles(
+        eraseParticlesRef.current,
+        elapsedMs,
+      );
 
       if (context) {
         const devicePixelRatio = window.devicePixelRatio || 1;
@@ -411,6 +427,7 @@ export function Canvas({
               }
             : null,
         );
+        drawEraseParticles(context, eraseParticlesRef.current);
       }
 
       animationFrameId = requestAnimationFrame(draw);
@@ -792,6 +809,15 @@ export function Canvas({
     }
 
     for (const id of hitIds) {
+      const element = elementsRef.current.find((candidate) => candidate.id === id);
+
+      if (element) {
+        eraseParticlesRef.current = spawnEraseParticles(
+          eraseParticlesRef.current,
+          element,
+        );
+      }
+
       eraser.removedIds.add(id);
       removeElement(id);
 
