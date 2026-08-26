@@ -348,6 +348,43 @@ export function Canvas({
 
   useEffect(() => {
     let disposed = false;
+    let sharedFitFrame: number | null = null;
+
+    const fitViewportToElements = (sceneElements: SceneElement[]) => {
+      const canvas = canvasRef.current;
+      const bounds = getSceneBounds(sceneElements);
+
+      if (!canvas || !bounds) {
+        return;
+      }
+
+      const canvasRect = canvas.getBoundingClientRect();
+      const usableWidth = Math.max(
+        1,
+        canvasRect.width * (1 - FIT_PADDING_RATIO * 2),
+      );
+      const usableHeight = Math.max(
+        1,
+        canvasRect.height * (1 - FIT_PADDING_RATIO * 2),
+      );
+      const contentWidth = Math.max(bounds.width, 1);
+      const contentHeight = Math.max(bounds.height, 1);
+      const zoom = Math.min(
+        MAX_ZOOM,
+        Math.max(
+          MIN_ZOOM,
+          Math.min(usableWidth / contentWidth, usableHeight / contentHeight),
+        ),
+      );
+      const fittedViewport: Viewport = {
+        zoom,
+        offsetX: canvasRect.width / 2 - (bounds.x + bounds.width / 2) * zoom,
+        offsetY: canvasRect.height / 2 - (bounds.y + bounds.height / 2) * zoom,
+      };
+
+      viewportRef.current = fittedViewport;
+      setViewport(fittedViewport);
+    };
 
     const loadInitialScene = async () => {
       const shared = await loadSharedSceneFromLocation();
@@ -363,6 +400,11 @@ export function Canvas({
           shared.scene.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
         );
         setReadOnly(true);
+        sharedFitFrame = window.requestAnimationFrame(() => {
+          if (!disposed) {
+            fitViewportToElements(shared.scene!.elements);
+          }
+        });
       } else {
         if (shared.found) {
           window.alert("O link compartilhado é inválido ou está corrompido.");
@@ -432,6 +474,9 @@ export function Canvas({
       unsubscribe();
       if (saveTimeout !== null) {
         window.clearTimeout(saveTimeout);
+      }
+      if (sharedFitFrame !== null) {
+        window.cancelAnimationFrame(sharedFitFrame);
       }
     };
   }, [
