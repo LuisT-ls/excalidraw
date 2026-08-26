@@ -1,5 +1,6 @@
 import { getStroke } from "perfect-freehand";
 import type rough from "roughjs/bin/rough";
+import type { Options } from "roughjs/bin/core";
 import type {
   ArrowElement,
   ElementBase,
@@ -33,7 +34,7 @@ export function shouldDisableMultiStroke(
   return strokeStyle !== "solid";
 }
 
-function roughOptions(element: ElementBase) {
+export function getRoughOptions(element: ElementBase): Options {
   return {
     stroke: element.strokeColor,
     strokeWidth: element.strokeWidth,
@@ -47,11 +48,38 @@ function roughOptions(element: ElementBase) {
   };
 }
 
+export interface ArrowHeadPoints {
+  left: { x: number; y: number };
+  right: { x: number; y: number };
+}
+
+export function getArrowHeadPoints(element: ArrowElement): ArrowHeadPoints {
+  const start = element.points[element.points.length - 2];
+  const end = element.points[element.points.length - 1];
+
+  // A ponta usa o último segmento, permitindo que uma seta com vários pontos
+  // no futuro mantenha a direção correta no trecho final.
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const headLength = Math.max(12, element.strokeWidth * 4);
+  const headAngle = Math.PI / 7;
+
+  return {
+    left: {
+      x: end.x - headLength * Math.cos(angle - headAngle),
+      y: end.y - headLength * Math.sin(angle - headAngle),
+    },
+    right: {
+      x: end.x - headLength * Math.cos(angle + headAngle),
+      y: end.y - headLength * Math.sin(angle + headAngle),
+    },
+  };
+}
+
 export function renderRectangle(
   roughCanvas: RoughCanvas,
   element: RectangleElement,
 ) {
-  const options = roughOptions(element);
+  const options = getRoughOptions(element);
 
   if (element.cornerStyle === "round") {
     roughCanvas.path(
@@ -77,12 +105,12 @@ export function renderEllipse(
     element.height / 2,
     element.width,
     element.height,
-    roughOptions(element),
+    getRoughOptions(element),
   );
 }
 
 export function renderLine(roughCanvas: RoughCanvas, element: LineElement) {
-  const options = roughOptions(element);
+  const options = getRoughOptions(element);
 
   for (let index = 1; index < element.points.length; index += 1) {
     const start = element.points[index - 1];
@@ -92,7 +120,7 @@ export function renderLine(roughCanvas: RoughCanvas, element: LineElement) {
 }
 
 export function renderArrow(roughCanvas: RoughCanvas, element: ArrowElement) {
-  const options = roughOptions(element);
+  const options = getRoughOptions(element);
 
   for (let index = 1; index < element.points.length; index += 1) {
     const start = element.points[index - 1];
@@ -100,23 +128,8 @@ export function renderArrow(roughCanvas: RoughCanvas, element: ArrowElement) {
     roughCanvas.line(start.x, start.y, end.x, end.y, options);
   }
 
-  const start = element.points[element.points.length - 2];
   const end = element.points[element.points.length - 1];
-
-  // A ponta usa o último segmento, permitindo que uma seta com vários pontos
-  // no futuro mantenha a direção correta no trecho final.
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
-  const headLength = Math.max(12, element.strokeWidth * 4);
-  const headAngle = Math.PI / 7;
-
-  const left = {
-    x: end.x - headLength * Math.cos(angle - headAngle),
-    y: end.y - headLength * Math.sin(angle - headAngle),
-  };
-  const right = {
-    x: end.x - headLength * Math.cos(angle + headAngle),
-    y: end.y - headLength * Math.sin(angle + headAngle),
-  };
+  const { left, right } = getArrowHeadPoints(element);
 
   roughCanvas.line(end.x, end.y, left.x, left.y, options);
   roughCanvas.line(end.x, end.y, right.x, right.y, options);

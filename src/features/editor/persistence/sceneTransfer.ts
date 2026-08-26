@@ -1,4 +1,8 @@
 import { renderScene } from "../rendering/renderScene";
+import {
+  renderSvgScene,
+  SVG_NAMESPACE,
+} from "../rendering/renderSvgScene";
 import type { SceneElement } from "../model/types";
 import { expandBounds, getSceneBounds } from "../interaction/sceneBounds";
 import type { PersistedScene } from "./sceneStorage";
@@ -90,4 +94,37 @@ export function exportSceneAsPng(
       resolve();
     }, "image/png");
   });
+}
+
+export function exportSceneAsSvg(
+  elements: SceneElement[],
+  backgroundColor: string,
+): void {
+  if (typeof window === "undefined" || elements.length === 0) {
+    return;
+  }
+
+  const bounds = getSceneBounds(elements);
+  if (!bounds) {
+    return;
+  }
+
+  const exportBounds = expandBounds(bounds, EXPORT_PADDING);
+  const svg = document.createElementNS(SVG_NAMESPACE, "svg");
+  svg.setAttribute("xmlns", SVG_NAMESPACE);
+  svg.setAttribute("version", "1.1");
+  svg.setAttribute(
+    "viewBox",
+    `${exportBounds.x} ${exportBounds.y} ${exportBounds.width} ${exportBounds.height}`,
+  );
+  svg.setAttribute("width", String(Math.ceil(exportBounds.width)));
+  svg.setAttribute("height", String(Math.ceil(exportBounds.height)));
+
+  renderSvgScene(svg, elements, backgroundColor);
+
+  const serialized = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([serialized], {
+    type: "image/svg+xml;charset=utf-8",
+  });
+  downloadBlob(blob, `whiteboard-${Date.now()}.svg`);
 }

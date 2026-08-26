@@ -11,6 +11,7 @@ import { parseScene, removeSavedScene } from "@/features/editor/persistence/scen
 import {
   exportSceneAsJson,
   exportSceneAsPng,
+  exportSceneAsSvg,
 } from "@/features/editor/persistence/sceneTransfer";
 import {
   convertExcalidrawScene,
@@ -307,6 +308,11 @@ export function Menu({ onEnterPresentation }: MenuProps) {
     closeMenu();
   };
 
+  const exportSvg = () => {
+    exportSceneAsSvg(elements, backgroundColor);
+    closeMenu();
+  };
+
   const openPresentationMode = () => {
     closeMenu();
     onEnterPresentation();
@@ -349,6 +355,12 @@ export function Menu({ onEnterPresentation }: MenuProps) {
               onClick={exportPng}
             >
               Exportar imagem...
+            </ActionMenuItem>
+            <ActionMenuItem
+              disabled={elements.length === 0}
+              onClick={exportSvg}
+            >
+              Exportar SVG
             </ActionMenuItem>
             <ActionMenuItem
               disabled={elements.length === 0}
