@@ -70,6 +70,7 @@ import {
   DEFAULT_BACKGROUND_COLOR,
   type EditorStyle,
 } from "@/features/editor/store/useWhiteboardStore";
+import { useEditorPreferencesStore } from "@/features/editor/store/useEditorPreferencesStore";
 import {
   initializeBoards,
   saveBoardScene,
@@ -255,6 +256,9 @@ function freehandExtent(points: Point[]) {
 export function Canvas({
   backgroundColor: backgroundColorProp,
 }: CanvasProps) {
+  const marqueeSelectionMode = useEditorPreferencesStore(
+    (state) => state.marqueeSelectionMode,
+  );
   const elements = useWhiteboardStore((state) => state.elements);
   const selectedElementIds = useWhiteboardStore(
     (state) => state.selectedElementIds,
@@ -355,6 +359,7 @@ export function Canvas({
     null,
   );
   const [textInputOffsetY, setTextInputOffsetY] = useState(0);
+  const marqueeSelectionModeRef = useRef(marqueeSelectionMode);
 
   elementsRef.current = elements;
   selectedElementIdsRef.current = selectedElementIds;
@@ -362,6 +367,7 @@ export function Canvas({
   activeToolRef.current = activeTool;
   isReadOnlyRef.current = isReadOnly;
   styleRef.current = style;
+  marqueeSelectionModeRef.current = marqueeSelectionMode;
 
   const registerCreatedElement = (id: ElementId) => {
     recentlyCreatedElementsRef.current.set(id, performance.now());
@@ -923,6 +929,7 @@ export function Canvas({
       const marqueeIds = getElementsIntersectingBounds(
         elementsRef.current,
         bounds,
+        marqueeSelectionModeRef.current,
       );
       const nextSelectedIds = marquee.shiftKey
         ? Array.from(
@@ -2462,6 +2469,7 @@ export function Canvas({
           const marqueeIds = getElementsIntersectingBounds(
             elementsRef.current,
             bounds,
+            marqueeSelectionModeRef.current,
           );
           const nextSelectedIds = marquee.shiftKey
             ? Array.from(new Set([

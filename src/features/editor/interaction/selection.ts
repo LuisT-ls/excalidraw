@@ -1,6 +1,8 @@
 import { getBoundingBox } from "./hitTesting";
 import type { Bounds, ElementId, Point, SceneElement } from "../model/types";
 
+export type MarqueeSelectionMode = "overlap" | "wrap";
+
 export function normalizeSelectionBounds(start: Point, end: Point): Bounds {
   return {
     x: Math.min(start.x, end.x),
@@ -19,12 +21,28 @@ export function boundsIntersect(first: Bounds, second: Bounds): boolean {
   );
 }
 
+export function boundsContainedIn(inner: Bounds, outer: Bounds): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
+}
+
 export function getElementsIntersectingBounds(
   elements: SceneElement[],
   bounds: Bounds,
+  mode: MarqueeSelectionMode = "overlap",
 ): ElementId[] {
   return elements
-    .filter((element) => boundsIntersect(getBoundingBox(element), bounds))
+    .filter((element) => {
+      const elementBounds = getBoundingBox(element);
+
+      return mode === "wrap"
+        ? boundsContainedIn(elementBounds, bounds)
+        : boundsIntersect(elementBounds, bounds);
+    })
     .map((element) => element.id);
 }
 

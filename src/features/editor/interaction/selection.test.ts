@@ -5,6 +5,7 @@ import {
   normalizeSelectionBounds,
   toggleSelectedElement,
 } from "./selection";
+import type { SceneElement } from "../model/types";
 
 describe("selection helpers", () => {
   it("seleciona elementos com qualquer interseção com o marquee", () => {
@@ -28,5 +29,55 @@ describe("selection helpers", () => {
   it("alterna um elemento sem perder os demais selecionados", () => {
     expect(toggleSelectedElement(["a", "b"], "c")).toEqual(["a", "b", "c"]);
     expect(toggleSelectedElement(["a", "b"], "a")).toEqual(["b"]);
+  });
+
+  it("suporta Wrap exigindo que o bbox fique inteiro dentro da área", () => {
+    const elements: SceneElement[] = [
+      {
+        id: "inside",
+        type: "rectangle",
+        x: 0,
+        y: 0,
+        width: 10,
+        height: 10,
+        rotation: 0,
+        strokeColor: "#000",
+        strokeWidth: 2,
+        strokeStyle: "solid",
+        fillColor: null,
+        fillStyle: "none",
+        opacity: 1,
+        seed: 1,
+        roughness: 1,
+        cornerStyle: "sharp",
+      },
+      {
+        id: "partial",
+        type: "rectangle",
+        x: 8,
+        y: 8,
+        width: 10,
+        height: 10,
+        rotation: 0,
+        strokeColor: "#000",
+        strokeWidth: 2,
+        strokeStyle: "solid",
+        fillColor: null,
+        fillStyle: "none",
+        opacity: 1,
+        seed: 2,
+        roughness: 1,
+        cornerStyle: "sharp",
+      },
+    ];
+    const bounds = normalizeSelectionBounds({ x: -2, y: -2 }, { x: 15, y: 15 });
+
+    expect(getElementsIntersectingBounds(elements, bounds, "overlap")).toEqual([
+      "inside",
+      "partial",
+    ]);
+    expect(getElementsIntersectingBounds(elements, bounds, "wrap")).toEqual([
+      "inside",
+    ]);
   });
 });

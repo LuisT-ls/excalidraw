@@ -7,55 +7,111 @@ import { Canvas } from "@/components/whiteboard/Canvas";
 import { Menu } from "@/components/whiteboard/Menu";
 import { PropertiesPanel } from "@/components/whiteboard/PropertiesPanel";
 import { SharedSceneBanner } from "@/components/whiteboard/SharedSceneBanner";
+import { StatsPanel } from "@/components/whiteboard/StatsPanel";
 import { Toolbar } from "@/components/whiteboard/Toolbar";
+import { useEditorPreferencesStore } from "@/features/editor/store/useEditorPreferencesStore";
 
 export function WhiteboardApp() {
-  const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [isUiHidden, setIsUiHidden] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [isFullscreenMode, setIsFullscreenMode] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const setReadOnly = useWhiteboardStore((state) => state.setReadOnly);
-  const previousReadOnlyRef = useRef<boolean | null>(null);
+  const hydrateEditorPreferences = useEditorPreferencesStore(
+    (state) => state.hydrate,
+  );
+  const previousPresentationUiHiddenRef = useRef<boolean | null>(null);
+  const previousPresentationReadOnlyRef = useRef<boolean | null>(null);
+  const previousViewReadOnlyRef = useRef<boolean | null>(null);
+  const isPresentationMode = isFullscreenMode;
 
-  const restoreReadOnlyState = useCallback(() => {
-    const previousReadOnly = previousReadOnlyRef.current;
+  useEffect(() => {
+    hydrateEditorPreferences();
+  }, [hydrateEditorPreferences]);
+
+  const restorePresentationState = useCallback(() => {
+    const previousReadOnly = previousPresentationReadOnlyRef.current;
+    const previousUiHidden = previousPresentationUiHiddenRef.current;
 
     if (previousReadOnly !== null) {
       setReadOnly(previousReadOnly);
-      previousReadOnlyRef.current = null;
+      previousPresentationReadOnlyRef.current = null;
+    }
+
+    if (previousUiHidden !== null) {
+      setIsUiHidden(previousUiHidden);
+      previousPresentationUiHiddenRef.current = null;
     }
   }, [setReadOnly]);
 
   const exitPresentation = useCallback(() => {
-    setIsPresentationMode(false);
-    restoreReadOnlyState();
+    setIsFullscreenMode(false);
+    restorePresentationState();
 
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {
         // Sair da tela cheia pode ser bloqueado pelo navegador; a UI já foi restaurada.
       });
     }
-  }, [restoreReadOnlyState]);
+  }, [restorePresentationState]);
 
   const enterPresentation = useCallback(() => {
     if (isPresentationMode) {
       return;
     }
 
-    previousReadOnlyRef.current = isReadOnly;
+    previousPresentationUiHiddenRef.current = isUiHidden;
+    previousPresentationReadOnlyRef.current = isReadOnly;
+    setIsUiHidden(true);
     setReadOnly(true);
-    setIsPresentationMode(true);
+    setIsFullscreenMode(true);
 
     if (typeof document.documentElement.requestFullscreen === "function") {
       void document.documentElement.requestFullscreen().catch(() => {
         // O modo sem bordas continua funcionando quando fullscreen não é permitido.
       });
     }
-  }, [isPresentationMode, isReadOnly, setReadOnly]);
+  }, [isFullscreenMode, isUiHidden, isReadOnly, setReadOnly]);
+
+  const enterViewMode = useCallback(() => {
+    if (isViewMode) {
+      return;
+    }
+
+    previousViewReadOnlyRef.current = isReadOnly;
+    setIsViewMode(true);
+    setReadOnly(true);
+  }, [isReadOnly, isViewMode, setReadOnly]);
+
+  const exitViewMode = useCallback(() => {
+    setIsViewMode(false);
+
+    if (previousViewReadOnlyRef.current !== null) {
+      setReadOnly(previousViewReadOnlyRef.current);
+      previousViewReadOnlyRef.current = null;
+    }
+  }, [setReadOnly]);
+
+  const toggleViewMode = useCallback(() => {
+    if (isViewMode) {
+      exitViewMode();
+    } else {
+      enterViewMode();
+    }
+  }, [enterViewMode, exitViewMode, isViewMode]);
+
+  const toggleZenMode = useCallback(() => {
+    if (!isFullscreenMode) {
+      setIsUiHidden((hidden) => !hidden);
+    }
+  }, [isFullscreenMode]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       if (isPresentationMode && !document.fullscreenElement) {
-        setIsPresentationMode(false);
-        restoreReadOnlyState();
+        setIsFullscreenMode(false);
+        restorePresentationState();
       }
     };
 
@@ -64,17 +120,24 @@ export function WhiteboardApp() {
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
-  }, [isPresentationMode, restoreReadOnlyState]);
+  }, [isPresentationMode, restorePresentationState]);
 
   useEffect(() => {
-    if (!isPresentationMode) {
+    if (!isPresentationMode && !isUiHidden && !isViewMode) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        exitPresentation();
+
+        if (isPresentationMode) {
+          exitPresentation();
+        } else if (isUiHidden) {
+          setIsUiHidden(false);
+        } else if (isViewMode) {
+          exitViewMode();
+        }
       }
     };
 
@@ -83,19 +146,36 @@ export function WhiteboardApp() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [exitPresentation, isPresentationMode]);
+  }, [
+    exitPresentation,
+    exitViewMode,
+    isPresentationMode,
+    isUiHidden,
+    isViewMode,
+  ]);
+
+  const hideUi = isUiHidden || isPresentationMode;
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-[#fafaf9] dark:bg-slate-950">
       <Canvas />
 
-      {!isPresentationMode && (
+      {!hideUi && (
         <>
           <SharedSceneBanner />
           <div className="absolute left-4 top-4 z-20">
-            <Menu onEnterPresentation={enterPresentation} />
+            <Menu
+              isViewMode={isViewMode}
+              isZenMode={isUiHidden}
+              onEnterPresentation={enterPresentation}
+              onToggleStats={() => setShowStats((visible) => !visible)}
+              onToggleViewMode={toggleViewMode}
+              onToggleZen={toggleZenMode}
+              showStats={showStats}
+            />
           </div>
           <PropertiesPanel />
+          {showStats && <StatsPanel />}
           <div className="pointer-events-none absolute inset-x-0 top-4 z-10 flex justify-center px-4">
             <div className="pointer-events-auto">
               <Toolbar />

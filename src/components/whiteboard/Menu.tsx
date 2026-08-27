@@ -46,6 +46,7 @@ import {
 } from "@/features/editor/persistence/shareLink";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useTheme, type Theme } from "@/components/theme/ThemeProvider";
+import { useEditorPreferencesStore } from "@/features/editor/store/useEditorPreferencesStore";
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
 import {
   ActionMenuDivider,
@@ -53,7 +54,13 @@ import {
 } from "@/components/ui/ActionMenu";
 
 interface MenuProps {
+  isViewMode: boolean;
+  isZenMode: boolean;
   onEnterPresentation: () => void;
+  onToggleStats: () => void;
+  onToggleViewMode: () => void;
+  onToggleZen: () => void;
+  showStats: boolean;
 }
 
 const BACKGROUND_PRESETS = [
@@ -93,7 +100,15 @@ const THEME_OPTIONS: Array<{
   { value: "system", label: "Sistema", icon: Monitor },
 ];
 
-export function Menu({ onEnterPresentation }: MenuProps) {
+export function Menu({
+  isViewMode,
+  isZenMode,
+  onEnterPresentation,
+  onToggleStats,
+  onToggleViewMode,
+  onToggleZen,
+  showStats,
+}: MenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -104,6 +119,12 @@ export function Menu({ onEnterPresentation }: MenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
+  const marqueeSelectionMode = useEditorPreferencesStore(
+    (state) => state.marqueeSelectionMode,
+  );
+  const setMarqueeSelectionMode = useEditorPreferencesStore(
+    (state) => state.setMarqueeSelectionMode,
+  );
   const elements = useWhiteboardStore((state) => state.elements);
   const boards = useWhiteboardStore((state) => state.boards);
   const currentBoardId = useWhiteboardStore((state) => state.currentBoardId);
@@ -682,6 +703,30 @@ export function Menu({ onEnterPresentation }: MenuProps) {
             >
               Atalhos de teclado
             </ActionMenuItem>
+            <ActionMenuItem
+              onClick={() => {
+                closeMenu();
+                onToggleZen();
+              }}
+            >
+              {isZenMode ? "Sair do modo Zen" : "Modo Zen"}
+            </ActionMenuItem>
+            <ActionMenuItem
+              onClick={() => {
+                closeMenu();
+                onToggleViewMode();
+              }}
+            >
+              {isViewMode ? "Sair do modo de visualização" : "Modo de visualização"}
+            </ActionMenuItem>
+            <ActionMenuItem
+              onClick={() => {
+                closeMenu();
+                onToggleStats();
+              }}
+            >
+              {showStats ? "Ocultar estatísticas" : "Estatísticas"}
+            </ActionMenuItem>
             <ActionMenuItem onClick={openPresentationMode}>
               Modo apresentação
             </ActionMenuItem>
@@ -744,6 +789,33 @@ export function Menu({ onEnterPresentation }: MenuProps) {
                     }`}
                   >
                     <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ActionMenuDivider />
+            <div className="px-2 py-1">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Seleção por área
+              </p>
+              <div className="grid grid-cols-2 gap-1">
+                {([
+                  ["overlap", "Overlap"],
+                  ["wrap", "Wrap"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-label={`Seleção ${label}`}
+                    aria-pressed={marqueeSelectionMode === value}
+                    onClick={() => setMarqueeSelectionMode(value)}
+                    className={`rounded-md px-2 py-2 text-xs transition-colors ${
+                      marqueeSelectionMode === value
+                        ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
+                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                    }`}
+                  >
                     {label}
                   </button>
                 ))}
