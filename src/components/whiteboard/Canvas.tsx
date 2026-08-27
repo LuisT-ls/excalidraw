@@ -25,6 +25,11 @@ import {
   worldToScreen,
 } from "@/features/editor/interaction/coordinates";
 import {
+  getTwoFingerFrame,
+  updateViewportForTwoFingerGesture,
+  type TwoFingerFrame,
+} from "@/features/editor/interaction/twoFingerGesture";
+import {
   createElementFromDrag,
   createFreehandElement,
   type DrawingTool,
@@ -204,6 +209,11 @@ interface ContextMenuState {
   worldPoint: Point;
 }
 
+interface TwoFingerInteraction {
+  pointerIds: [number, number];
+  previousFrame: TwoFingerFrame;
+}
+
 const RESIZE_HANDLES: ResizeHandle[] = [
   "top-left",
   "top-right",
@@ -337,9 +347,14 @@ export function Canvas({
   const resizeRef = useRef<ResizeInteraction | null>(null);
   const rotationRef = useRef<RotationInteraction | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
+  const touchPointersRef = useRef<Map<number, Point>>(new Map());
+  const ignoredTouchPointerIdsRef = useRef<Set<number>>(new Set());
+  const touchGestureBlockedRef = useRef(false);
+  const twoFingerInteractionRef = useRef<TwoFingerInteraction | null>(null);
   const lastSelectPointerDownRef = useRef<LastSelectPointerDown | null>(
     null,
   );
+  const [textInputOffsetY, setTextInputOffsetY] = useState(0);
 
   elementsRef.current = elements;
   selectedElementIdsRef.current = selectedElementIds;
@@ -881,6 +896,155 @@ export function Canvas({
     };
   };
 
+  const getTwoFingerFrameForIds = (
+    pointerIds: [number, number],
+  ): TwoFingerFrame | null => {
+    const first = touchPointersRef.current.get(pointerIds[0]);
+    const second = touchPointersRef.current.get(pointerIds[1]);
+
+    if (!first || !second) {
+      return null;
+    }
+
+    return getTwoFingerFrame(first, second);
+  };
+
+  const finalizeMarqueeSelection = (marquee: MarqueeInteraction) => {
+    const screenDistance = Math.hypot(
+      marquee.currentScreen.x - marquee.startScreen.x,
+      marquee.currentScreen.y - marquee.startScreen.y,
+    );
+
+    if (screenDistance >= DRAG_THRESHOLD_PX) {
+      const bounds = normalizeSelectionBounds(
+        marquee.startWorld,
+        marquee.currentWorld,
+      );
+      const marqueeIds = getElementsIntersectingBounds(
+        elementsRef.current,
+        bounds,
+      );
+      const nextSelectedIds = marquee.shiftKey
+        ? Array.from(
+            new Set([...selectedElementIdsRef.current, ...marqueeIds]),
+          )
+        : marqueeIds;
+
+      selectedElementIdsRef.current = nextSelectedIds;
+      setSelectedElementIds(nextSelectedIds);
+      return;
+    }
+
+    if (!marquee.shiftKey) {
+      selectedElementIdsRef.current = [];
+      setSelectedElementIds([]);
+    }
+  };
+
+  /**
+   * Ends the single-pointer interaction before a second finger takes over.
+   * Moving, resizing and rotating have already applied their latest values;
+   * only transient drafts are discarded. Marquee selection is finalized using
+   * the last point received from the first finger.
+   */
+  const finishSinglePointerForMultitouch = (
+    canvas: HTMLCanvasElement,
+  ) => {
+    const pointerId = activePointerIdRef.current;
+
+    if (pointerId === null) {
+      return;
+    }
+
+    if (panRef.current?.pointerId === pointerId) {
+      panRef.current = null;
+      setViewport(viewportRef.current);
+    }
+
+    if (resizeRef.current?.pointerId === pointerId) {
+      resizeRef.current = null;
+    }
+
+    if (rotationRef.current?.pointerId === pointerId) {
+      rotationRef.current = null;
+    }
+
+    if (eraserRef.current?.pointerId === pointerId) {
+      eraserRef.current = null;
+    }
+
+    if (drawingRef.current?.pointerId === pointerId) {
+      drawingRef.current = null;
+      draftElementRef.current = null;
+    }
+
+    if (marqueeRef.current?.pointerId === pointerId) {
+      finalizeMarqueeSelection(marqueeRef.current);
+      marqueeRef.current = null;
+    }
+
+    if (interactionRef.current?.pointerId === pointerId) {
+      const interaction = interactionRef.current;
+
+      if (!interaction.didDrag) {
+        const nextSelectedIds = interaction.hitElementId
+          ? interaction.shiftKey
+            ? toggleSelectedElement(
+                interaction.selectionBefore,
+                interaction.hitElementId,
+              )
+            : [interaction.hitElementId]
+          : interaction.shiftKey
+            ? interaction.selectionBefore
+            : [];
+
+        selectedElementIdsRef.current = nextSelectedIds;
+        setSelectedElementIds(nextSelectedIds);
+      }
+
+      interactionRef.current = null;
+    }
+
+    lastSelectPointerDownRef.current = null;
+
+    if (canvas.hasPointerCapture(pointerId)) {
+      canvas.releasePointerCapture(pointerId);
+    }
+
+    activePointerIdRef.current = null;
+  };
+
+  const updateTwoFingerViewport = () => {
+    const gesture = twoFingerInteractionRef.current;
+
+    if (!gesture) {
+      return;
+    }
+
+    const currentFrame = getTwoFingerFrameForIds(gesture.pointerIds);
+
+    if (!currentFrame) {
+      return;
+    }
+
+    if (viewportTransitionRef.current !== null) {
+      cancelAnimationFrame(viewportTransitionRef.current);
+      viewportTransitionRef.current = null;
+    }
+
+    const nextViewport = updateViewportForTwoFingerGesture(
+      viewportRef.current,
+      gesture.previousFrame,
+      currentFrame,
+      MIN_ZOOM,
+      MAX_ZOOM,
+    );
+
+    viewportRef.current = nextViewport;
+    setViewport(nextViewport);
+    gesture.previousFrame = currentFrame;
+  };
+
   const getVisibleCenterWorld = (): Point => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -1317,6 +1481,7 @@ export function Canvas({
 
     textEditingRef.current = null;
     setTextEditing(null);
+    setTextInputOffsetY(0);
 
     if (!shouldCommit || editing.value.trim().length === 0) {
       setActiveTool("select");
@@ -1399,6 +1564,7 @@ export function Canvas({
 
     textEditingRef.current = editing;
     setTextEditing(editing);
+    setTextInputOffsetY(0);
 
     if (!elementId) {
       setSelectedElementIds([]);
@@ -1423,6 +1589,54 @@ export function Canvas({
     }
   }, [textEditing]);
 
+  useEffect(() => {
+    if (!textEditing || typeof window === "undefined") {
+      return;
+    }
+
+    const visualViewport = window.visualViewport;
+
+    if (!visualViewport) {
+      return;
+    }
+
+    const keepTextInputVisible = () => {
+      const input = textInputRef.current;
+
+      if (!input) {
+        return;
+      }
+
+      const visibleTop = visualViewport.offsetTop + 12;
+      const visibleBottom =
+        visualViewport.offsetTop + visualViewport.height - 12;
+      const inputRect = input.getBoundingClientRect();
+      let nextOffsetY = 0;
+
+      if (inputRect.bottom > visibleBottom) {
+        nextOffsetY = visibleBottom - inputRect.bottom;
+      } else if (inputRect.top < visibleTop) {
+        nextOffsetY = visibleTop - inputRect.top;
+      }
+
+      setTextInputOffsetY((currentOffsetY) =>
+        currentOffsetY === nextOffsetY ? currentOffsetY : nextOffsetY,
+      );
+    };
+
+    const frameId = window.requestAnimationFrame(keepTextInputVisible);
+    visualViewport.addEventListener("resize", keepTextInputVisible);
+    visualViewport.addEventListener("scroll", keepTextInputVisible);
+    window.addEventListener("resize", keepTextInputVisible);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      visualViewport.removeEventListener("resize", keepTextInputVisible);
+      visualViewport.removeEventListener("scroll", keepTextInputVisible);
+      window.removeEventListener("resize", keepTextInputVisible);
+    };
+  }, [textEditing]);
+
   const openTextElementForEditing = (element: TextElement) => {
     selectedElementIdsRef.current = [element.id];
     setSelectedElementIds([element.id]);
@@ -1440,14 +1654,6 @@ export function Canvas({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (
-      activePointerIdRef.current !== null &&
-      activePointerIdRef.current !== event.pointerId
-    ) {
-      event.preventDefault();
-      return;
-    }
-
     if (textEditingRef.current) {
       // O textarea fica sobre o canvas e pode manter o foco durante o próximo
       // gesto. Forçamos o blur antes de processar o pointerdown para que um
@@ -1458,6 +1664,73 @@ export function Canvas({
         event.preventDefault();
         return;
       }
+    }
+
+    const isTouchPointer = event.pointerType === "touch";
+
+    if (isTouchPointer) {
+      const point = getCanvasPoint(event);
+      touchPointersRef.current.set(event.pointerId, point);
+
+      if (
+        touchGestureBlockedRef.current ||
+        ignoredTouchPointerIdsRef.current.has(event.pointerId)
+      ) {
+        ignoredTouchPointerIdsRef.current.add(event.pointerId);
+        event.preventDefault();
+        return;
+      }
+
+      const activePointerId = activePointerIdRef.current;
+
+      // Um toque não deve interromper uma interação de mouse/caneta. A
+      // transição para o gesto de dois dedos só é válida quando o ponteiro
+      // ativo também é um dos toques registrados no mapa.
+      if (
+        activePointerId !== null &&
+        !touchPointersRef.current.has(activePointerId)
+      ) {
+        ignoredTouchPointerIdsRef.current.add(event.pointerId);
+        event.preventDefault();
+        return;
+      }
+
+      if (touchPointersRef.current.size > 2) {
+        ignoredTouchPointerIdsRef.current.add(event.pointerId);
+        event.preventDefault();
+        return;
+      }
+
+      if (touchPointersRef.current.size === 2) {
+        const pointerIds = Array.from(
+          touchPointersRef.current.keys(),
+        ) as [number, number];
+
+        if (activePointerIdRef.current !== null) {
+          finishSinglePointerForMultitouch(event.currentTarget);
+        }
+
+        const frame = getTwoFingerFrameForIds(pointerIds);
+
+        if (frame) {
+          twoFingerInteractionRef.current = {
+            pointerIds,
+            previousFrame: frame,
+          };
+          activePointerIdRef.current = null;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          event.preventDefault();
+          return;
+        }
+      }
+    }
+
+    if (
+      activePointerIdRef.current !== null &&
+      activePointerIdRef.current !== event.pointerId
+    ) {
+      event.preventDefault();
+      return;
     }
 
     const capturePointer = () => {
@@ -1708,6 +1981,34 @@ export function Canvas({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const isTouchPointer = event.pointerType === "touch";
+
+    if (isTouchPointer) {
+      touchPointersRef.current.set(event.pointerId, getCanvasPoint(event));
+
+      const twoFingerInteraction = twoFingerInteractionRef.current;
+      if (
+        twoFingerInteraction &&
+        twoFingerInteraction.pointerIds.includes(event.pointerId)
+      ) {
+        if (textEditingRef.current) {
+          return;
+        }
+
+        event.preventDefault();
+        updateTwoFingerViewport();
+        return;
+      }
+
+      if (
+        touchGestureBlockedRef.current ||
+        ignoredTouchPointerIdsRef.current.has(event.pointerId)
+      ) {
+        event.preventDefault();
+        return;
+      }
+    }
+
     if (
       activePointerIdRef.current !== null &&
       activePointerIdRef.current !== event.pointerId
@@ -1986,6 +2287,57 @@ export function Canvas({
     event: ReactPointerEvent<HTMLCanvasElement>,
     cancelled = false,
   ) => {
+    const isTouchPointer = event.pointerType === "touch";
+
+    if (isTouchPointer) {
+      const twoFingerInteraction = twoFingerInteractionRef.current;
+
+      if (
+        twoFingerInteraction &&
+        twoFingerInteraction.pointerIds.includes(event.pointerId)
+      ) {
+        // Ao terminar um toque, não promovemos o dedo restante para uma nova
+        // interação de um ponteiro. Ele e qualquer toque que chegar antes de
+        // todos os dedos saírem ficam bloqueados até o gesto acabar.
+        event.preventDefault();
+        twoFingerInteractionRef.current = null;
+        touchPointersRef.current.delete(event.pointerId);
+        touchGestureBlockedRef.current = true;
+        for (const pointerId of touchPointersRef.current.keys()) {
+          ignoredTouchPointerIdsRef.current.add(pointerId);
+        }
+
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+
+        if (touchPointersRef.current.size === 0) {
+          touchGestureBlockedRef.current = false;
+          ignoredTouchPointerIdsRef.current.clear();
+        }
+
+        return;
+      }
+
+      const wasIgnored = ignoredTouchPointerIdsRef.current.has(
+        event.pointerId,
+      );
+      touchPointersRef.current.delete(event.pointerId);
+      ignoredTouchPointerIdsRef.current.delete(event.pointerId);
+
+      if (wasIgnored || touchGestureBlockedRef.current) {
+        event.preventDefault();
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        if (touchPointersRef.current.size === 0) {
+          touchGestureBlockedRef.current = false;
+          ignoredTouchPointerIdsRef.current.clear();
+        }
+        return;
+      }
+    }
+
     if (
       activePointerIdRef.current !== null &&
       activePointerIdRef.current !== event.pointerId
@@ -2406,7 +2758,7 @@ export function Canvas({
           className="pointer-events-none absolute z-20 box-border resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 outline-none shadow-none transition-[width,height,background-color,color] duration-300 focus:border-0 focus:bg-transparent focus:ring-0 dark:bg-transparent dark:focus:bg-transparent"
           style={{
             left: textEditing.screenPoint.x,
-            top: textEditing.screenPoint.y,
+            top: textEditing.screenPoint.y + textInputOffsetY,
             width: textInputWidth,
             height: textInputHeight,
             color: textEditing.style.strokeColor,
