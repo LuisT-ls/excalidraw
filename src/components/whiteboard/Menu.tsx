@@ -31,7 +31,9 @@ import {
 } from "@/features/editor/persistence/boardStorage";
 import {
   exportSceneAsJson,
+  exportSceneAsPdf,
   exportSceneAsPng,
+  exportSceneAsPptx,
   exportSceneAsSvg,
 } from "@/features/editor/persistence/sceneTransfer";
 import {
@@ -543,6 +545,20 @@ export function Menu({
     closeMenu();
   };
 
+  const exportPdf = () => {
+    void exportSceneAsPdf(elements, backgroundColor).catch(() => {
+      window.alert("Não foi possível exportar a cena como PDF.");
+    });
+    closeMenu();
+  };
+
+  const exportPptx = () => {
+    void exportSceneAsPptx(elements, backgroundColor).catch(() => {
+      window.alert("Não foi possível exportar a cena como PPTX.");
+    });
+    closeMenu();
+  };
+
   const openPresentationMode = () => {
     closeMenu();
     onEnterPresentation();
@@ -700,6 +716,18 @@ export function Menu({
                 <ActionMenuItem onClick={exportPng}>PNG</ActionMenuItem>
                 <ActionMenuItem onClick={exportSvg}>SVG</ActionMenuItem>
               </ActionMenuDisclosure>
+              <ActionMenuItem
+                disabled={elements.length === 0}
+                onClick={exportPdf}
+              >
+                Exportar PDF
+              </ActionMenuItem>
+              <ActionMenuItem
+                disabled={elements.length === 0}
+                onClick={exportPptx}
+              >
+                Exportar PPTX
+              </ActionMenuItem>
               <ActionMenuItem
                 disabled={elements.length === 0}
                 onClick={shareScene}

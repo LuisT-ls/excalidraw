@@ -40,7 +40,7 @@ Garranchos é um whiteboard online inspirado no Excalidraw, criado como projeto 
 - Inserir imagens por upload, colagem da área de transferência do sistema e arrastar/soltar arquivo.
 - Salvamento automático local no navegador.
 - Múltiplos quadros nomeados, com criação, troca, renomeação, duplicação e exclusão.
-- Exportação para PNG, SVG e JSON.
+- Exportação para PNG, SVG, PDF vetorial (com fallback para PNG), PPTX em slide único e JSON.
 - Importação de JSON próprio e de arquivos `.excalidraw` reais.
 - Link compartilhável sem backend: a cena é compactada no fragmento da URL e aberta em modo somente leitura.
 
@@ -67,6 +67,8 @@ Versões conforme `package.json` e `package-lock.json`:
 - Tailwind CSS `3.4.17` para a interface
 - `lucide-react` `1.34.0` para ícones
 - `lz-string` `1.5.0` para compactação de links compartilháveis
+- `jsPDF` `4.2.1` + `svg2pdf.js` `2.8.0` para exportação de PDF
+- `pptxgenjs` `4.0.1` para exportação de apresentações com a cena como imagem
 - Vitest `2.1.8` para testes unitários
 
 ## Rodando localmente
