@@ -10,6 +10,10 @@ export function generateElementId(): string {
     .slice(2)}`;
 }
 
+export function generateCommentId(): string {
+  return `comment-${generateElementId()}`;
+}
+
 export function generateGroupId(): string {
   return `group-${generateElementId()}`;
 }

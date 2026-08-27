@@ -137,6 +137,7 @@ function emptyScene(): PersistedScene {
     type: "whiteboard-scene",
     version: 1,
     elements: [],
+    comments: [],
     viewport: { ...DEFAULT_BOARD_VIEWPORT },
     backgroundColor: DEFAULT_BOARD_BACKGROUND,
   };

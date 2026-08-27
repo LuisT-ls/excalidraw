@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type {
   CornerStyle,
+  Comment,
   ElementId,
   FillStyle,
   SceneElement,
@@ -26,8 +27,14 @@ export interface EditorStyle {
   cornerStyle: CornerStyle;
 }
 
+export interface HistorySnapshot {
+  elements: SceneElement[];
+  comments: Comment[];
+}
+
 export interface WhiteboardState {
   elements: SceneElement[];
+  comments: Comment[];
   boards: BoardMetadata[];
   currentBoardId: string | null;
   selectedElementIds: ElementId[];
@@ -39,11 +46,15 @@ export interface WhiteboardState {
   viewport: Viewport;
 
   setElements: (elements: SceneElement[]) => void;
+  setComments: (comments: Comment[]) => void;
   setBoards: (boards: BoardMetadata[]) => void;
   setCurrentBoardId: (id: string | null) => void;
   addElement: (element: SceneElement) => void;
+  addComment: (comment: Comment) => void;
   updateElement: (id: ElementId, updates: Partial<SceneElement>) => void;
+  updateComment: (id: string, updates: Partial<Comment>) => void;
   removeElement: (id: ElementId) => void;
+  removeComment: (id: string) => void;
   setSelectedElementIds: (ids: ElementId[]) => void;
   setActiveTool: (tool: Tool) => void;
   setReadOnly: (readOnly: boolean) => void;
@@ -64,8 +75,8 @@ export interface WhiteboardState {
   ) => void;
   resetHistory: () => void;
   commitHistoryEntry: () => void;
-  pastStates: SceneElement[][];
-  futureStates: SceneElement[][];
+  pastStates: HistorySnapshot[];
+  futureStates: HistorySnapshot[];
 
   undo: () => void;
   redo: () => void;
@@ -94,6 +105,7 @@ export const DEFAULT_BACKGROUND_COLOR = "#fafaf9";
 
 export const useWhiteboardStore = create<WhiteboardState>((set) => ({
   elements: [],
+  comments: [],
   boards: [],
   currentBoardId: null,
   selectedElementIds: [],
@@ -107,12 +119,19 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
   futureStates: [],
 
   setElements: (elements) => set({ elements: cloneSceneElements(elements) }),
+  setComments: (comments) =>
+    set({ comments: comments.map((comment) => ({ ...comment })) }),
   setBoards: (boards) => set({ boards: boards.map((board) => ({ ...board })) }),
   setCurrentBoardId: (currentBoardId) => set({ currentBoardId }),
 
   addElement: (element) =>
     set((state) => ({
       elements: [...state.elements, cloneSceneElement(element)],
+    })),
+
+  addComment: (comment) =>
+    set((state) => ({
+      comments: [...state.comments, { ...comment }],
     })),
 
   updateElement: (id, updates) =>
@@ -124,9 +143,21 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
       ),
     })),
 
+  updateComment: (id, updates) =>
+    set((state) => ({
+      comments: state.comments.map((comment) =>
+        comment.id === id ? { ...comment, ...updates } : comment,
+      ),
+    })),
+
   removeElement: (id) =>
     set((state) => ({
       elements: state.elements.filter((element) => element.id !== id),
+    })),
+
+  removeComment: (id) =>
+    set((state) => ({
+      comments: state.comments.filter((comment) => comment.id !== id),
     })),
 
   setSelectedElementIds: (selectedElementIds) =>
@@ -229,7 +260,10 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
     set((state) => ({
       pastStates: [
         ...state.pastStates,
-        cloneSceneElements(state.elements),
+        {
+          elements: cloneSceneElements(state.elements),
+          comments: state.comments.map((comment) => ({ ...comment })),
+        },
       ].slice(-MAX_HISTORY_SIZE),
       futureStates: [],
     })),
@@ -240,14 +274,18 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
         return state;
       }
 
-      const previousElements = state.pastStates[state.pastStates.length - 1];
+      const previousState = state.pastStates[state.pastStates.length - 1];
 
       return {
-        elements: cloneSceneElements(previousElements),
+        elements: cloneSceneElements(previousState.elements),
+        comments: previousState.comments.map((comment) => ({ ...comment })),
         pastStates: state.pastStates.slice(0, -1),
         futureStates: [
           ...state.futureStates,
-          cloneSceneElements(state.elements),
+          {
+            elements: cloneSceneElements(state.elements),
+            comments: state.comments.map((comment) => ({ ...comment })),
+          },
         ],
       };
     }),
@@ -258,13 +296,17 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
         return state;
       }
 
-      const nextElements = state.futureStates[state.futureStates.length - 1];
+      const nextState = state.futureStates[state.futureStates.length - 1];
 
       return {
-        elements: cloneSceneElements(nextElements),
+        elements: cloneSceneElements(nextState.elements),
+        comments: nextState.comments.map((comment) => ({ ...comment })),
         pastStates: [
           ...state.pastStates,
-          cloneSceneElements(state.elements),
+          {
+            elements: cloneSceneElements(state.elements),
+            comments: state.comments.map((comment) => ({ ...comment })),
+          },
         ].slice(-MAX_HISTORY_SIZE),
         futureStates: state.futureStates.slice(0, -1),
       };

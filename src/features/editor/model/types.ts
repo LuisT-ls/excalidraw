@@ -44,6 +44,14 @@ export interface Viewport {
   zoom: number;
 }
 
+export interface Comment {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  createdAt: number;
+}
+
 export interface ElementBase {
   id: ElementId;
   type: ElementType;
@@ -128,5 +136,6 @@ export interface Scene {
   type: "whiteboard-scene";
   version: 1;
   elements: SceneElement[];
+  comments: Comment[];
   backgroundColor: string;
 }

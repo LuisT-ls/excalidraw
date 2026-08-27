@@ -138,6 +138,7 @@ export function Menu({
     (state) => state.setSnapToGrid,
   );
   const elements = useWhiteboardStore((state) => state.elements);
+  const comments = useWhiteboardStore((state) => state.comments);
   const boards = useWhiteboardStore((state) => state.boards);
   const currentBoardId = useWhiteboardStore((state) => state.currentBoardId);
   const viewport = useWhiteboardStore((state) => state.viewport);
@@ -146,6 +147,7 @@ export function Menu({
     (state) => state.backgroundColor,
   );
   const setElements = useWhiteboardStore((state) => state.setElements);
+  const setComments = useWhiteboardStore((state) => state.setComments);
   const setBoards = useWhiteboardStore((state) => state.setBoards);
   const setCurrentBoardId = useWhiteboardStore(
     (state) => state.setCurrentBoardId,
@@ -222,7 +224,7 @@ export function Menu({
 
     const confirmed = await confirm({
       title: "Limpar a tela?",
-      description: "Todos os elementos do quadro serão removidos. Essa ação pode ser desfeita com Ctrl/Cmd+Z.",
+      description: "Todo o conteúdo do quadro, incluindo comentários, será removido. Essa ação pode ser desfeita com Ctrl/Cmd+Z.",
       confirmLabel: "Limpar tudo",
       variant: "destructive",
     });
@@ -232,6 +234,7 @@ export function Menu({
     }
 
     setElements([]);
+    setComments([]);
     setSelectedElementIds([]);
   };
 
@@ -244,6 +247,7 @@ export function Menu({
       type: "whiteboard-scene",
       version: 1,
       elements,
+      comments,
       viewport,
       backgroundColor,
     });
@@ -260,6 +264,7 @@ export function Menu({
     setCurrentBoardId(boardId);
     saveCurrentBoardId(boardId);
     setElements(scene.elements);
+    setComments(scene.comments ?? []);
     setViewport(scene.viewport ?? DEFAULT_BOARD_VIEWPORT);
     setBackgroundColor(scene.backgroundColor ?? DEFAULT_BOARD_BACKGROUND);
     setSelectedElementIds([]);
@@ -475,7 +480,7 @@ export function Menu({
       return;
     }
 
-    if (elements.length > 0) {
+    if (elements.length > 0 || comments.length > 0) {
       closeMenu();
 
       const confirmed = await confirm({
@@ -492,6 +497,7 @@ export function Menu({
 
     commitHistoryEntry();
     setElements(importedScene.elements);
+    setComments(importedScene.comments ?? []);
     setSelectedElementIds([]);
 
     if (importedScene.backgroundColor) {
@@ -536,7 +542,7 @@ export function Menu({
   };
 
   const exportJson = () => {
-    exportSceneAsJson(elements, backgroundColor);
+    exportSceneAsJson(elements, backgroundColor, comments);
     closeMenu();
   };
 

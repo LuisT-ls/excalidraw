@@ -4,6 +4,7 @@ import { useWhiteboardStore } from "./useWhiteboardStore";
 
 beforeEach(() => {
   useWhiteboardStore.getState().setElements(exampleElements);
+  useWhiteboardStore.getState().setComments([]);
   useWhiteboardStore.getState().setSelectedElementIds([]);
   useWhiteboardStore.getState().setActiveTool("select");
   useWhiteboardStore.getState().setToolLocked(false);
@@ -72,6 +73,30 @@ describe("useWhiteboardStore", () => {
     expect(useWhiteboardStore.getState().elements[0].x).toBe(initialX + 40);
     expect(useWhiteboardStore.getState().pastStates).toHaveLength(1);
     expect(useWhiteboardStore.getState().futureStates).toHaveLength(0);
+  });
+
+  it("inclui comentários nos snapshots de undo e redo", () => {
+    const store = useWhiteboardStore.getState();
+    const comment = {
+      id: "comment-1",
+      x: 120,
+      y: 80,
+      text: "Revisar este ponto",
+      createdAt: 123,
+    };
+
+    store.commitHistoryEntry();
+    store.addComment(comment);
+
+    expect(useWhiteboardStore.getState().pastStates).toHaveLength(1);
+    expect(useWhiteboardStore.getState().pastStates[0].comments).toEqual([]);
+    expect(useWhiteboardStore.getState().comments).toEqual([comment]);
+
+    store.undo();
+    expect(useWhiteboardStore.getState().comments).toEqual([]);
+
+    store.redo();
+    expect(useWhiteboardStore.getState().comments).toEqual([comment]);
   });
 
   it("restaura vários elementos movidos com um único snapshot", () => {

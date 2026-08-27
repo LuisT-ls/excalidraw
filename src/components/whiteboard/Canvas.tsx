@@ -106,6 +106,7 @@ import {
   readImageFile,
   type ImageAsset,
 } from "@/features/editor/interaction/image";
+import { CommentsOverlay } from "@/components/whiteboard/CommentsOverlay";
 import { ContextMenu } from "@/components/whiteboard/ContextMenu";
 import {
   ActionMenuDivider,
@@ -310,6 +311,7 @@ export function Canvas({
   const showGrid = useEditorPreferencesStore((state) => state.showGrid);
   const snapToGrid = useEditorPreferencesStore((state) => state.snapToGrid);
   const elements = useWhiteboardStore((state) => state.elements);
+  const comments = useWhiteboardStore((state) => state.comments);
   const selectedElementIds = useWhiteboardStore(
     (state) => state.selectedElementIds,
   );
@@ -331,6 +333,7 @@ export function Canvas({
   const resetHistory = useWhiteboardStore((state) => state.resetHistory);
   const setViewport = useWhiteboardStore((state) => state.setViewport);
   const setElements = useWhiteboardStore((state) => state.setElements);
+  const setComments = useWhiteboardStore((state) => state.setComments);
   const setBackgroundColor = useWhiteboardStore(
     (state) => state.setBackgroundColor,
   );
@@ -400,6 +403,9 @@ export function Canvas({
     null,
   );
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(
+    null,
+  );
+  const [commentDraftPoint, setCommentDraftPoint] = useState<Point | null>(
     null,
   );
   const textEditingRef = useRef<TextEditingState | null>(null);
@@ -502,6 +508,7 @@ export function Canvas({
 
       if (shared.found && shared.scene) {
         setElements(shared.scene.elements);
+        setComments([]);
         setSelectedElementIds([]);
         setBackgroundColor(
           shared.scene.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
@@ -518,6 +525,7 @@ export function Canvas({
         }
 
         setElements(initializedBoards.scene.elements);
+        setComments(initializedBoards.scene.comments ?? []);
         if (initializedBoards.scene.viewport) {
           setViewport(initializedBoards.scene.viewport);
         }
@@ -552,6 +560,7 @@ export function Canvas({
             type: "whiteboard-scene",
             version: 1,
             elements: state.elements,
+            comments: state.comments,
             viewport: state.viewport,
             backgroundColor: state.backgroundColor,
           });
@@ -564,6 +573,7 @@ export function Canvas({
     const unsubscribe = useWhiteboardStore.subscribe((state, previousState) => {
       if (
         state.elements !== previousState.elements ||
+        state.comments !== previousState.comments ||
         state.viewport !== previousState.viewport ||
         state.backgroundColor !== previousState.backgroundColor
       ) {
@@ -582,6 +592,7 @@ export function Canvas({
     };
   }, [
     setBackgroundColor,
+    setComments,
     resetHistory,
     setBoards,
     setCurrentBoardId,
@@ -3048,6 +3059,14 @@ export function Canvas({
                 Colar aqui
               </ActionMenuItem>
               <ActionMenuItem
+                onClick={() => {
+                  setCommentDraftPoint(contextMenu.worldPoint);
+                  setContextMenu(null);
+                }}
+              >
+                Adicionar comentário aqui
+              </ActionMenuItem>
+              <ActionMenuItem
                 disabled={elements.length === 0}
                 onClick={() => {
                   selectAllFromContext();
@@ -3067,6 +3086,7 @@ export function Canvas({
                 Ajustar
               </ActionMenuItem>
               <ActionMenuItem
+                disabled={elements.length === 0 && comments.length === 0}
                 destructive
                 onClick={() => {
                   setContextMenu(null);
@@ -3079,6 +3099,11 @@ export function Canvas({
           )}
         </ContextMenu>
       )}
+
+      <CommentsOverlay
+        draftPoint={commentDraftPoint}
+        onDraftFinished={() => setCommentDraftPoint(null)}
+      />
 
       {textEditing && (
         <textarea

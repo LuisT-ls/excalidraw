@@ -135,6 +135,30 @@ describe("share link", () => {
     expect(await decodeSharedScene(encoded)).toEqual(scene);
   });
 
+  it("não inclui comentários no link compartilhável", async () => {
+    vi.stubGlobal("window", { location: { hash: "" } });
+    const scene = {
+      type: "whiteboard-scene" as const,
+      version: 1 as const,
+      elements: [exampleElements[0]],
+      comments: [
+        {
+          id: "comment-private",
+          x: 10,
+          y: 20,
+          text: "Anotação pessoal",
+          createdAt: 123,
+        },
+      ],
+      backgroundColor: "#ffffff",
+    };
+
+    const encoded = await encodeSharedScene(scene);
+    const decoded = await decodeSharedScene(encoded);
+
+    expect(decoded).not.toHaveProperty("comments");
+  });
+
   it("continua abrindo links gzip do formato anterior", async () => {
     vi.stubGlobal("window", { location: { hash: "" } });
     const scene = {

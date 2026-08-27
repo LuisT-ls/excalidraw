@@ -1,4 +1,4 @@
-import type { SceneElement, Viewport } from "../model/types";
+import type { Comment, SceneElement, Viewport } from "../model/types";
 
 export const SCENE_STORAGE_KEY = "whiteboard-scene-v1";
 
@@ -6,6 +6,7 @@ export interface PersistedScene {
   type: "whiteboard-scene";
   version: 1;
   elements: SceneElement[];
+  comments?: Comment[];
   viewport?: Viewport;
   backgroundColor?: string;
 }
@@ -37,6 +38,30 @@ function isPersistedScene(value: unknown): value is PersistedScene {
       ) {
         return false;
       }
+    }
+
+    if (
+      scene.comments !== undefined &&
+      (!Array.isArray(scene.comments) ||
+        !scene.comments.every((comment) => {
+          if (!comment || typeof comment !== "object") {
+            return false;
+          }
+
+          const record = comment as Record<string, unknown>;
+          return (
+            typeof record.id === "string" &&
+            typeof record.x === "number" &&
+            Number.isFinite(record.x) &&
+            typeof record.y === "number" &&
+            Number.isFinite(record.y) &&
+            typeof record.text === "string" &&
+            typeof record.createdAt === "number" &&
+            Number.isFinite(record.createdAt)
+          );
+        }))
+    ) {
+      return false;
     }
 
     return (

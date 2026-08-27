@@ -6,6 +6,7 @@ import { saveBoardScene } from "@/features/editor/persistence/boardStorage";
 export function SharedSceneBanner() {
   const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const elements = useWhiteboardStore((state) => state.elements);
+  const comments = useWhiteboardStore((state) => state.comments);
   const backgroundColor = useWhiteboardStore((state) => state.backgroundColor);
   const viewport = useWhiteboardStore((state) => state.viewport);
   const currentBoardId = useWhiteboardStore((state) => state.currentBoardId);
@@ -22,6 +23,7 @@ export function SharedSceneBanner() {
         type: "whiteboard-scene",
         version: 1,
         elements,
+        comments,
         backgroundColor,
         viewport,
       });

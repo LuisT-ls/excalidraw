@@ -4,7 +4,7 @@ import {
   renderSvgScene,
   SVG_NAMESPACE,
 } from "../rendering/renderSvgScene";
-import type { Bounds, SceneElement } from "../model/types";
+import type { Bounds, Comment, SceneElement } from "../model/types";
 import { expandBounds, getSceneBounds } from "../interaction/sceneBounds";
 import type { PersistedScene } from "./sceneStorage";
 
@@ -33,8 +33,12 @@ function downloadBlob(blob: Blob, filename: string): void {
 export function exportSceneAsJson(
   elements: SceneElement[],
   backgroundColor: string,
+  comments: Comment[] = [],
 ): void {
-  if (typeof window === "undefined" || elements.length === 0) {
+  if (
+    typeof window === "undefined" ||
+    (elements.length === 0 && comments.length === 0)
+  ) {
     return;
   }
 
@@ -42,6 +46,7 @@ export function exportSceneAsJson(
     type: "whiteboard-scene",
     version: 1,
     elements,
+    comments,
     backgroundColor,
   };
   const blob = new Blob([JSON.stringify(scene, null, 2)], {

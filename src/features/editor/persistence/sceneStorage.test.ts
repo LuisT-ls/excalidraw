@@ -35,6 +35,15 @@ describe("sceneStorage", () => {
     type: "whiteboard-scene",
     version: 1,
     elements: exampleElements.slice(0, 1),
+    comments: [
+      {
+        id: "comment-1",
+        x: 84,
+        y: 116,
+        text: "Revisar esta área",
+        createdAt: 1700000000000,
+      },
+    ],
     viewport: { offsetX: 42, offsetY: -18, zoom: 1.5 },
     backgroundColor: "#dbeafe",
   };
@@ -90,6 +99,22 @@ describe("sceneStorage", () => {
 
     expect(parseScene("{invalid-json")).toBeNull();
     expect(parseScene(JSON.stringify({ type: "whiteboard-scene", version: 1 }))).toBeNull();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("rejeita comentários com estrutura inválida", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    expect(
+      parseScene(
+        JSON.stringify({
+          type: "whiteboard-scene",
+          version: 1,
+          elements: [],
+          comments: [{ id: "comment-1", x: "not-a-number" }],
+        }),
+      ),
+    ).toBeNull();
     expect(warn).toHaveBeenCalled();
   });
 });
