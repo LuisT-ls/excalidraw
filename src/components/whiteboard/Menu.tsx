@@ -527,7 +527,7 @@ export function Menu({ onEnterPresentation }: MenuProps) {
           <div
             role="menu"
             aria-label="Menu principal"
-            className="absolute left-0 top-12 z-30 w-80 rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900"
+            className="absolute left-0 top-12 z-30 max-h-[calc(100vh-5rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900 sm:max-h-none sm:w-80 sm:max-w-none sm:overflow-visible"
           >
             <section className="mb-2 rounded-lg bg-slate-50 p-2 dark:bg-slate-800/70">
               <div className="mb-1 flex items-center justify-between px-1">

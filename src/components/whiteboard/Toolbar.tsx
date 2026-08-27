@@ -107,9 +107,9 @@ export function Toolbar() {
     <div className="flex flex-col items-center gap-2">
       <section
         aria-label="Ferramentas do quadro branco"
-        className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900/95"
+        className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur transition-colors duration-300 sm:flex-nowrap dark:border-slate-700 dark:bg-slate-900/95"
       >
-        <div className="flex flex-wrap items-center gap-0.5 border-r border-slate-200 pr-2 dark:border-slate-700">
+        <div className="flex w-full max-w-full flex-nowrap items-center justify-center gap-0.5 overflow-x-auto border-b border-slate-200 pb-1 dark:border-slate-700 sm:w-auto sm:max-w-none sm:justify-start sm:overflow-visible sm:border-b-0 sm:border-r sm:pb-0 sm:pr-2">
           {TOOL_OPTIONS.map(({ tool, label, shortcut, icon: Icon }) => (
             <button
               key={tool}
@@ -136,36 +136,37 @@ export function Toolbar() {
               </span>
             </button>
           ))}
+          <button
+            type="button"
+            disabled={isReadOnly}
+            aria-label="Imagem"
+            title="Inserir imagem"
+            onClick={() => window.dispatchEvent(new Event("whiteboard:insert-image"))}
+            className={`${toolButtonClass} border-l border-slate-200 pl-1 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            <ImageIcon size={18} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            disabled={isReadOnly}
+            aria-label={toolLocked ? "Desbloquear ferramenta" : "Bloquear ferramenta"}
+            aria-pressed={toolLocked}
+            title={toolLocked ? "Desbloquear ferramenta" : "Bloquear ferramenta"}
+            onClick={toggleToolLocked}
+            className={`${toolButtonClass} border-l border-slate-200 pl-1 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40 ${
+              toolLocked ? "text-slate-900 dark:text-white" : ""
+            }`}
+          >
+            {toolLocked ? (
+              <Lock size={17} strokeWidth={1.8} aria-hidden="true" />
+            ) : (
+              <LockOpen size={17} strokeWidth={1.8} aria-hidden="true" />
+            )}
+          </button>
         </div>
 
-        <button
-          type="button"
-          disabled={isReadOnly}
-          aria-label="Imagem"
-          title="Inserir imagem"
-          onClick={() => window.dispatchEvent(new Event("whiteboard:insert-image"))}
-          className={`${toolButtonClass} border-r border-slate-200 pr-2 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40`}
-        >
-          <ImageIcon size={18} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          disabled={isReadOnly}
-          aria-label={toolLocked ? "Desbloquear ferramenta" : "Bloquear ferramenta"}
-          aria-pressed={toolLocked}
-          title={toolLocked ? "Desbloquear ferramenta" : "Bloquear ferramenta"}
-          onClick={toggleToolLocked}
-          className={`${toolButtonClass} border-r border-slate-200 pr-2 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40 ${
-            toolLocked ? "text-slate-900 dark:text-white" : ""
-          }`}
-        >
-          {toolLocked ? (
-            <Lock size={17} strokeWidth={1.8} aria-hidden="true" />
-          ) : (
-            <LockOpen size={17} strokeWidth={1.8} aria-hidden="true" />
-          )}
-        </button>
+        <div className="flex w-full max-w-full flex-nowrap items-center justify-start gap-1 overflow-x-auto sm:w-auto sm:max-w-none sm:flex-wrap sm:justify-center sm:overflow-visible">
 
         <div className="flex items-center gap-1 border-r border-slate-200 pr-2 dark:border-slate-700">
           <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -244,6 +245,7 @@ export function Toolbar() {
           >
             <Redo2 size={17} strokeWidth={1.8} aria-hidden="true" />
           </button>
+        </div>
         </div>
       </section>
 

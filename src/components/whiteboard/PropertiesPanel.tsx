@@ -249,7 +249,7 @@ export function PropertiesPanel() {
   return (
     <aside
       aria-label="Propriedades da seleção"
-      className="fixed left-4 top-24 z-20 max-h-[calc(100vh-7rem)] w-64 overflow-y-auto rounded-xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900/95"
+      className="fixed bottom-4 left-4 right-4 top-auto z-20 max-h-[45vh] w-auto overflow-y-auto rounded-xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900/95 sm:bottom-auto sm:left-4 sm:right-auto sm:top-24 sm:max-h-[calc(100vh-7rem)] sm:w-64"
     >
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
