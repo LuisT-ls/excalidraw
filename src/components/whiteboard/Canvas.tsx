@@ -1668,6 +1668,11 @@ export function Canvas({
 
     const isTouchPointer = event.pointerType === "touch";
 
+    if (!isTouchPointer && twoFingerInteractionRef.current) {
+      event.preventDefault();
+      return;
+    }
+
     if (isTouchPointer) {
       const point = getCanvasPoint(event);
       touchPointersRef.current.set(event.pointerId, point);
@@ -1983,6 +1988,11 @@ export function Canvas({
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const isTouchPointer = event.pointerType === "touch";
 
+    if (!isTouchPointer && twoFingerInteractionRef.current) {
+      event.preventDefault();
+      return;
+    }
+
     if (isTouchPointer) {
       touchPointersRef.current.set(event.pointerId, getCanvasPoint(event));
 
@@ -2288,6 +2298,11 @@ export function Canvas({
     cancelled = false,
   ) => {
     const isTouchPointer = event.pointerType === "touch";
+
+    if (!isTouchPointer && twoFingerInteractionRef.current) {
+      event.preventDefault();
+      return;
+    }
 
     if (isTouchPointer) {
       const twoFingerInteraction = twoFingerInteractionRef.current;
