@@ -19,6 +19,12 @@ export const metadata: Metadata = {
   },
   description: siteDescription,
   applicationName: "Garranchos",
+  authors: [
+    {
+      name: "Luís Teixeira",
+      url: "https://github.com/LuisT-ls",
+    },
+  ],
   generator: "Next.js",
   keywords: [
     "quadro branco",

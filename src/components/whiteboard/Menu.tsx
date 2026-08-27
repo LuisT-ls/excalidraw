@@ -851,6 +851,17 @@ export function Menu({
               className="hidden"
               onChange={handleImportChange}
             />
+            <p className="mt-2 border-t border-slate-200 px-2 pt-2 text-center text-[11px] text-slate-400 dark:border-slate-700 dark:text-slate-500">
+              Desenvolvido por{" "}
+              <a
+                href="https://github.com/LuisT-ls/excalidraw"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 transition-colors hover:text-slate-800 dark:text-slate-400 dark:decoration-slate-600 dark:hover:text-slate-200"
+              >
+                Luís Teixeira
+              </a>
+            </p>
           </div>
         )}
       </div>
