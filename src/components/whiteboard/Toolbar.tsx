@@ -7,6 +7,7 @@ import {
   Eraser,
   Hand,
   Image as ImageIcon,
+  LibraryBig,
   Lock,
   LockOpen,
   Maximize2,
@@ -49,7 +50,12 @@ const toolButtonClass =
 const activeToolClass =
   "bg-slate-900 text-white shadow-sm hover:bg-slate-900 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100";
 
-export function Toolbar() {
+interface ToolbarProps {
+  isLibraryOpen: boolean;
+  onToggleLibrary: () => void;
+}
+
+export function Toolbar({ isLibraryOpen, onToggleLibrary }: ToolbarProps) {
   const activeTool = useWhiteboardStore((state) => state.activeTool);
   const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const toolLocked = useWhiteboardStore((state) => state.toolLocked);
@@ -147,6 +153,22 @@ export function Toolbar() {
             className={`${toolButtonClass} border-l border-slate-200 pl-1 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40`}
           >
             <ImageIcon size={18} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            disabled={isReadOnly}
+            aria-label="Biblioteca de formas"
+            aria-pressed={isLibraryOpen}
+            title="Biblioteca de formas"
+            onClick={onToggleLibrary}
+            className={`${toolButtonClass} border-l border-slate-200 pl-1 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40 ${
+              isLibraryOpen
+                ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-200"
+                : ""
+            }`}
+          >
+            <LibraryBig size={18} strokeWidth={1.8} aria-hidden="true" />
           </button>
 
           <button

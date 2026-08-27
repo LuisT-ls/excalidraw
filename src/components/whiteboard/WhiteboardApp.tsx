@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
 import { Canvas } from "@/components/whiteboard/Canvas";
 import { Menu } from "@/components/whiteboard/Menu";
+import { LibraryPanel } from "@/components/whiteboard/LibraryPanel";
 import { PropertiesPanel } from "@/components/whiteboard/PropertiesPanel";
 import { SharedSceneBanner } from "@/components/whiteboard/SharedSceneBanner";
 import { StatsPanel } from "@/components/whiteboard/StatsPanel";
@@ -16,6 +17,7 @@ export function WhiteboardApp() {
   const [isViewMode, setIsViewMode] = useState(false);
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const isReadOnly = useWhiteboardStore((state) => state.isReadOnly);
   const setReadOnly = useWhiteboardStore((state) => state.setReadOnly);
   const hydrateEditorPreferences = useEditorPreferencesStore(
@@ -175,10 +177,16 @@ export function WhiteboardApp() {
             />
           </div>
           <PropertiesPanel />
+          {isLibraryOpen && (
+            <LibraryPanel onClose={() => setIsLibraryOpen(false)} />
+          )}
           {showStats && <StatsPanel />}
           <div className="pointer-events-none absolute inset-x-0 top-4 z-10 flex justify-center px-4">
             <div className="pointer-events-auto">
-              <Toolbar />
+              <Toolbar
+                isLibraryOpen={isLibraryOpen}
+                onToggleLibrary={() => setIsLibraryOpen((open) => !open)}
+              />
             </div>
           </div>
         </>

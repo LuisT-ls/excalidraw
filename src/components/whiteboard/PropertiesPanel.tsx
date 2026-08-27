@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  LibraryBig,
   SendToBack,
   Trash2,
 } from "lucide-react";
@@ -25,6 +26,12 @@ import {
 import type { SceneElement } from "@/features/editor/model/types";
 import type { EditorStyle } from "@/features/editor/store/useWhiteboardStore";
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
+import {
+  createLibraryItem,
+  getNextLibraryItemName,
+} from "@/features/library/library";
+import { generateLibraryThumbnail } from "@/features/library/thumbnail";
+import { useLibraryStore } from "@/features/library/store/useLibraryStore";
 
 const panelButtonClass =
   "flex items-center justify-center gap-1.5 rounded-md border border-slate-200 px-2 py-2 text-xs text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800";
@@ -88,6 +95,13 @@ export function PropertiesPanel() {
   const setSelectedElementIds = useWhiteboardStore(
     (state) => state.setSelectedElementIds,
   );
+  const personalItems = useLibraryStore((state) => state.personalItems);
+  const hydrateLibrary = useLibraryStore((state) => state.hydrate);
+  const addPersonalItem = useLibraryStore((state) => state.addPersonalItem);
+
+  useEffect(() => {
+    hydrateLibrary();
+  }, [hydrateLibrary]);
 
   const selectedElements = elements.filter((element) =>
     selectedElementIds.includes(element.id),
@@ -248,6 +262,16 @@ export function PropertiesPanel() {
       removeElement(element.id);
     }
     setSelectedElementIds([]);
+  };
+
+  const saveSelectedToLibrary = () => {
+    if (selectedElements.length === 0) {
+      return;
+    }
+
+    const name = getNextLibraryItemName(personalItems);
+    const thumbnail = generateLibraryThumbnail(selectedElements);
+    addPersonalItem(createLibraryItem(selectedElements, name, thumbnail));
   };
 
   return (
@@ -607,6 +631,16 @@ export function PropertiesPanel() {
           >
             <Trash2 size={15} aria-hidden="true" />
             Excluir
+          </button>
+          <button
+            type="button"
+            aria-label="Salvar seleção na biblioteca"
+            title="Salvar seleção na biblioteca"
+            onClick={saveSelectedToLibrary}
+            className="col-span-2 flex items-center justify-center gap-1.5 rounded-md border border-blue-200 px-2 py-2 text-xs text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
+          >
+            <LibraryBig size={15} aria-hidden="true" />
+            Salvar na biblioteca
           </button>
         </div>
       </section>
