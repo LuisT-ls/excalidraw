@@ -33,6 +33,43 @@ export function ActionMenuItem({
   );
 }
 
+interface ActionMenuDisclosureProps {
+  label: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+  contentClassName?: string;
+}
+
+export function ActionMenuDisclosure({
+  label,
+  open,
+  onToggle,
+  children,
+  disabled = false,
+  contentClassName = "ml-2 mt-1",
+}: ActionMenuDisclosureProps) {
+  return (
+    <div>
+      <button
+        type="button"
+        role="menuitem"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={onToggle}
+        className={`${actionMenuItemClass} justify-between font-medium disabled:cursor-not-allowed disabled:text-slate-300 dark:disabled:text-slate-600`}
+      >
+        <span>{label}</span>
+        <span aria-hidden="true" className="text-xs text-slate-400 dark:text-slate-500">
+          {open ? "▾" : "▸"}
+        </span>
+      </button>
+      {open && <div className={contentClassName}>{children}</div>}
+    </div>
+  );
+}
+
 export function ActionMenuDivider() {
   return <div className="my-2 border-t border-slate-200 dark:border-slate-700" />;
 }

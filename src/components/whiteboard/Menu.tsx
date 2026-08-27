@@ -7,8 +7,6 @@ import {
   type ChangeEvent,
 } from "react";
 import {
-  ChevronDown,
-  ChevronUp,
   Monitor,
   Moon,
   Pencil,
@@ -50,6 +48,7 @@ import { useEditorPreferencesStore } from "@/features/editor/store/useEditorPref
 import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
 import {
   ActionMenuDivider,
+  ActionMenuDisclosure,
   ActionMenuItem,
 } from "@/components/ui/ActionMenu";
 
@@ -62,6 +61,8 @@ interface MenuProps {
   onToggleZen: () => void;
   showStats: boolean;
 }
+
+type MenuSection = "file" | "view" | "preferences";
 
 const BACKGROUND_PRESETS = [
   { label: "Branco", value: "#ffffff" },
@@ -110,6 +111,9 @@ export function Menu({
   showStats,
 }: MenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<MenuSection | null>(
+    null,
+  );
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [customColor, setCustomColor] = useState("");
@@ -153,8 +157,16 @@ export function Menu({
 
   const closeMenu = () => {
     setIsOpen(false);
+    setExpandedSection(null);
     setIsExportMenuOpen(false);
     setEditingBoardId(null);
+  };
+
+  const toggleSection = (section: MenuSection) => {
+    setExpandedSection((currentSection) =>
+      currentSection === section ? null : section,
+    );
+    setIsExportMenuOpen(false);
   };
 
   const toggleMenu = () => {
@@ -654,173 +666,181 @@ export function Menu({
                 Novo quadro
               </button>
             </section>
-            <ActionMenuItem
-              onClick={() => importInputRef.current?.click()}
-              disabled={isReadOnly}
+            <ActionMenuDisclosure
+              label="Arquivo"
+              open={expandedSection === "file"}
+              onToggle={() => toggleSection("file")}
             >
-              Abrir
-            </ActionMenuItem>
-            <ActionMenuItem
-              disabled={elements.length === 0}
-              onClick={exportJson}
-            >
-              Salvar como...
-            </ActionMenuItem>
-            <ActionMenuItem
-              disabled={elements.length === 0}
-              onClick={() => setIsExportMenuOpen((open) => !open)}
-            >
-              <span className="flex w-full items-center justify-between gap-2">
-                <span>Exportar imagem...</span>
-                {isExportMenuOpen ? (
-                  <ChevronUp size={15} aria-hidden="true" />
-                ) : (
-                  <ChevronDown size={15} aria-hidden="true" />
-                )}
-              </span>
-            </ActionMenuItem>
-            {isExportMenuOpen && elements.length > 0 && (
-              <div className="ml-2 mt-1 rounded-md bg-slate-50 p-1 dark:bg-slate-800/70">
+              <ActionMenuItem
+                onClick={() => importInputRef.current?.click()}
+                disabled={isReadOnly}
+              >
+                Abrir
+              </ActionMenuItem>
+              <ActionMenuItem
+                disabled={elements.length === 0}
+                onClick={exportJson}
+              >
+                Salvar como...
+              </ActionMenuItem>
+              <ActionMenuDisclosure
+                label="Exportar imagem..."
+                open={isExportMenuOpen}
+                disabled={elements.length === 0}
+                onToggle={() => setIsExportMenuOpen((open) => !open)}
+                contentClassName="ml-2 mt-1 rounded-md bg-slate-50 p-1 dark:bg-slate-800/70"
+              >
                 <ActionMenuItem onClick={exportPng}>PNG</ActionMenuItem>
                 <ActionMenuItem onClick={exportSvg}>SVG</ActionMenuItem>
-              </div>
-            )}
-            <ActionMenuItem
-              disabled={elements.length === 0}
-              onClick={shareScene}
+              </ActionMenuDisclosure>
+              <ActionMenuItem
+                disabled={elements.length === 0}
+                onClick={shareScene}
+              >
+                Copiar link compartilhável
+              </ActionMenuItem>
+              <ActionMenuItem
+                onClick={clearScene}
+                disabled={isReadOnly}
+                destructive
+              >
+                Limpar a tela
+              </ActionMenuItem>
+            </ActionMenuDisclosure>
+
+            <ActionMenuDisclosure
+              label="Visualização"
+              open={expandedSection === "view"}
+              onToggle={() => toggleSection("view")}
             >
-              Copiar link compartilhável
-            </ActionMenuItem>
-            <ActionMenuItem
-              onClick={clearScene}
-              disabled={isReadOnly}
-              destructive
-            >
-              Limpar a tela
-            </ActionMenuItem>
-            <ActionMenuItem
-              onClick={openShortcuts}
-            >
+              <ActionMenuItem
+                onClick={() => {
+                  closeMenu();
+                  onToggleZen();
+                }}
+              >
+                {isZenMode ? "Sair do modo Zen" : "Modo Zen"}
+              </ActionMenuItem>
+              <ActionMenuItem
+                onClick={() => {
+                  closeMenu();
+                  onToggleViewMode();
+                }}
+              >
+                {isViewMode ? "Sair do modo de visualização" : "Modo de visualização"}
+              </ActionMenuItem>
+              <ActionMenuItem
+                onClick={() => {
+                  closeMenu();
+                  onToggleStats();
+                }}
+              >
+                {showStats ? "Ocultar estatísticas" : "Estatísticas"}
+              </ActionMenuItem>
+              <ActionMenuItem onClick={openPresentationMode}>
+                Modo apresentação
+              </ActionMenuItem>
+            </ActionMenuDisclosure>
+
+            <ActionMenuItem onClick={openShortcuts}>
               Atalhos de teclado
             </ActionMenuItem>
-            <ActionMenuItem
-              onClick={() => {
-                closeMenu();
-                onToggleZen();
-              }}
-            >
-              {isZenMode ? "Sair do modo Zen" : "Modo Zen"}
-            </ActionMenuItem>
-            <ActionMenuItem
-              onClick={() => {
-                closeMenu();
-                onToggleViewMode();
-              }}
-            >
-              {isViewMode ? "Sair do modo de visualização" : "Modo de visualização"}
-            </ActionMenuItem>
-            <ActionMenuItem
-              onClick={() => {
-                closeMenu();
-                onToggleStats();
-              }}
-            >
-              {showStats ? "Ocultar estatísticas" : "Estatísticas"}
-            </ActionMenuItem>
-            <ActionMenuItem onClick={openPresentationMode}>
-              Modo apresentação
-            </ActionMenuItem>
 
-            <ActionMenuDivider />
-            <div className="px-2 py-1">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Fundo da tela
-              </p>
-              <div className="grid grid-cols-5 gap-1">
-                {BACKGROUND_PRESETS.map((preset) => (
-                  <button
-                    key={preset.value}
-                    type="button"
+            <ActionMenuDisclosure
+              label="Preferências"
+              open={expandedSection === "preferences"}
+              onToggle={() => toggleSection("preferences")}
+            >
+              <div className="px-2 py-1">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Fundo da tela
+                </p>
+                <div className="grid grid-cols-5 gap-1">
+                  {BACKGROUND_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      disabled={isReadOnly}
+                      aria-label={`Fundo ${preset.label}`}
+                      aria-pressed={backgroundColor === preset.value}
+                      title={preset.label}
+                      onClick={() => setBackgroundColor(preset.value)}
+                      className={`h-7 rounded-md border-2 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 ${
+                        backgroundColor === preset.value
+                          ? "border-slate-900 ring-1 ring-slate-300 dark:border-white dark:ring-slate-600"
+                          : "border-slate-200 dark:border-slate-700"
+                      }`}
+                      style={{ backgroundColor: preset.value }}
+                    />
+                  ))}
+                </div>
+                <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <span>Hex</span>
+                  <input
+                    type="text"
                     disabled={isReadOnly}
-                    aria-label={`Fundo ${preset.label}`}
-                    aria-pressed={backgroundColor === preset.value}
-                    title={preset.label}
-                    onClick={() => setBackgroundColor(preset.value)}
-                    className={`h-7 rounded-md border-2 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 ${
-                      backgroundColor === preset.value
-                        ? "border-slate-900 ring-1 ring-slate-300 dark:border-white dark:ring-slate-600"
-                        : "border-slate-200 dark:border-slate-700"
-                    }`}
-                    style={{ backgroundColor: preset.value }}
+                    value={customColor || backgroundColor}
+                    onChange={(event) => handleCustomColorChange(event.target.value)}
+                    placeholder="#ffffff"
+                    spellCheck={false}
+                    className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 font-mono text-xs uppercase outline-none focus:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-300"
                   />
-                ))}
+                </label>
               </div>
-              <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                <span>Hex</span>
-                <input
-                  type="text"
-                  disabled={isReadOnly}
-                  value={customColor || backgroundColor}
-                  onChange={(event) => handleCustomColorChange(event.target.value)}
-                  placeholder="#ffffff"
-                  spellCheck={false}
-                  className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 font-mono text-xs uppercase outline-none focus:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-300"
-                />
-              </label>
-            </div>
-            <ActionMenuDivider />
-            <div className="px-2 py-1">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Tema
-              </p>
-              <div className="grid grid-cols-3 gap-1">
-                {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-label={`Tema ${label}`}
-                    aria-pressed={theme === value}
-                    title={label}
-                    onClick={() => setTheme(value)}
-                    className={`flex items-center justify-center gap-1 rounded-md px-2 py-2 text-xs transition-colors ${
-                      theme === value
-                        ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
-                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
-                    {label}
-                  </button>
-                ))}
+              <ActionMenuDivider />
+              <div className="px-2 py-1">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Tema
+                </p>
+                <div className="grid grid-cols-3 gap-1">
+                  {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-label={`Tema ${label}`}
+                      aria-pressed={theme === value}
+                      title={label}
+                      onClick={() => setTheme(value)}
+                      className={`flex items-center justify-center gap-1 rounded-md px-2 py-2 text-xs transition-colors ${
+                        theme === value
+                          ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <ActionMenuDivider />
-            <div className="px-2 py-1">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Seleção por área
-              </p>
-              <div className="grid grid-cols-2 gap-1">
-                {([
-                  ["overlap", "Overlap"],
-                  ["wrap", "Wrap"],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-label={`Seleção ${label}`}
-                    aria-pressed={marqueeSelectionMode === value}
-                    onClick={() => setMarqueeSelectionMode(value)}
-                    className={`rounded-md px-2 py-2 text-xs transition-colors ${
-                      marqueeSelectionMode === value
-                        ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
-                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <ActionMenuDivider />
+              <div className="px-2 py-1">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Seleção por área
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {([
+                    ["overlap", "Overlap"],
+                    ["wrap", "Wrap"],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-label={`Seleção ${label}`}
+                      aria-pressed={marqueeSelectionMode === value}
+                      onClick={() => setMarqueeSelectionMode(value)}
+                      className={`rounded-md px-2 py-2 text-xs transition-colors ${
+                        marqueeSelectionMode === value
+                          ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
+                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            </ActionMenuDisclosure>
             <input
               ref={importInputRef}
               type="file"
