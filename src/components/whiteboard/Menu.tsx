@@ -712,6 +712,7 @@ export function Menu({
                 disabled={elements.length === 0}
                 onToggle={() => setIsExportMenuOpen((open) => !open)}
                 contentClassName="ml-2 mt-1 rounded-md bg-slate-50 p-1 dark:bg-slate-800/70"
+                desktopFlyout
               >
                 <ActionMenuItem onClick={exportPng}>PNG</ActionMenuItem>
                 <ActionMenuItem onClick={exportSvg}>SVG</ActionMenuItem>
