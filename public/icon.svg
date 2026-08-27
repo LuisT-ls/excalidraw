@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Garranchos</title>
+  <desc id="desc">Ícone desenhado à mão do quadro branco Garranchos</desc>
+  <rect width="512" height="512" rx="112" fill="#fff7d6"/>
+  <path d="M112 126c-17 5-30 23-32 44-4 43 8 176 22 216 7 21 22 31 39 29 31-3 56-20 69-46 16-33 11-75-15-94-24-18-61-17-82 7-19 22-17 60 8 75 24 15 60 7 81-18" fill="none" stroke="#2b293d" stroke-width="31" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M184 256c34-3 76-1 111 10 24 8 44 22 53 42" fill="none" stroke="#7955c7" stroke-width="24" stroke-linecap="round"/>
+  <path d="M314 286l36 23-36 23" fill="none" stroke="#ef7056" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M383 120l21 24-28 28" fill="none" stroke="#4fb5a5" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M374 201c25-17 48-18 67-4" fill="none" stroke="#eeb52a" stroke-width="17" stroke-linecap="round"/>
+  <path d="M362 380c26-24 48-25 66-4" fill="none" stroke="#7955c7" stroke-width="16" stroke-linecap="round"/>
+</svg>
