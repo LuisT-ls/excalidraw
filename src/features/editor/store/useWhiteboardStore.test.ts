@@ -74,6 +74,38 @@ describe("useWhiteboardStore", () => {
     expect(useWhiteboardStore.getState().futureStates).toHaveLength(0);
   });
 
+  it("restaura vários elementos movidos com um único snapshot", () => {
+    const store = useWhiteboardStore.getState();
+    const selected = store.elements.slice(0, 2);
+    const initialPositions = selected.map((element) => ({
+      id: element.id,
+      x: element.x,
+      y: element.y,
+    }));
+
+    store.commitHistoryEntry();
+    for (const element of selected) {
+      store.updateElement(element.id, {
+        x: element.x + 40,
+        y: element.y + 15,
+      });
+    }
+
+    expect(useWhiteboardStore.getState().pastStates).toHaveLength(1);
+
+    store.undo();
+
+    expect(
+      initialPositions.map(({ id }) => {
+        const restored = useWhiteboardStore
+          .getState()
+          .elements.find((element) => element.id === id);
+
+        return { id, x: restored?.x, y: restored?.y };
+      }),
+    ).toEqual(initialPositions);
+  });
+
   it("invalida redo quando uma nova ação começa após undo", () => {
     const store = useWhiteboardStore.getState();
     const element = store.elements[0];
@@ -115,6 +147,27 @@ describe("useWhiteboardStore", () => {
       originalOrder[0],
       ...originalOrder.slice(2),
     ]);
+  });
+
+  it("agrupa e desagrupa os elementos selecionados", () => {
+    const store = useWhiteboardStore.getState();
+    const ids = store.elements.slice(0, 2).map((element) => element.id);
+
+    store.groupElements(ids, "group-test");
+    expect(
+      useWhiteboardStore
+        .getState()
+        .elements.filter((element) => ids.includes(element.id))
+        .every((element) => element.groupId === "group-test"),
+    ).toBe(true);
+
+    store.ungroupElements([ids[0]]);
+    expect(
+      useWhiteboardStore
+        .getState()
+        .elements.filter((element) => ids.includes(element.id))
+        .every((element) => element.groupId === null),
+    ).toBe(true);
   });
 
   it("restaura todas as remoções de um gesto de borracha com um undo", () => {

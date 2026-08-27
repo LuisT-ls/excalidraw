@@ -54,3 +54,33 @@ export function toggleSelectedElement(
     ? selectedIds.filter((selectedId) => selectedId !== id)
     : [...selectedIds, id];
 }
+
+export function getGroupMemberIds(
+  elements: SceneElement[],
+  elementId: ElementId,
+): ElementId[] {
+  const element = elements.find((candidate) => candidate.id === elementId);
+
+  if (!element?.groupId) {
+    return element ? [element.id] : [];
+  }
+
+  return elements
+    .filter((candidate) => candidate.groupId === element.groupId)
+    .map((candidate) => candidate.id);
+}
+
+export function toggleSelectedElements(
+  selectedIds: ElementId[],
+  ids: ElementId[],
+): ElementId[] {
+  const selected = new Set(selectedIds);
+  const shouldRemove = ids.length > 0 && ids.every((id) => selected.has(id));
+
+  if (shouldRemove) {
+    const idsToRemove = new Set(ids);
+    return selectedIds.filter((id) => !idsToRemove.has(id));
+  }
+
+  return Array.from(new Set([...selectedIds, ...ids]));
+}

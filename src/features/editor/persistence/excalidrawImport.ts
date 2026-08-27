@@ -115,6 +115,7 @@ function createBase(element: RawExcalidrawElement): ElementBase {
   return {
     id: generateElementId(),
     type: "rectangle",
+    groupId: null,
     x: numberOr(element.x, 0),
     y: numberOr(element.y, 0),
     rotation: numberOr(element.angle, 0),

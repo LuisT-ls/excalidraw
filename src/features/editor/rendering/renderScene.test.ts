@@ -48,6 +48,7 @@ describe("renderScene", () => {
     const diamond: DiamondElement = {
       id: "diamond-render",
       type: "diamond",
+      groupId: null,
       x: 20,
       y: 30,
       width: 100,

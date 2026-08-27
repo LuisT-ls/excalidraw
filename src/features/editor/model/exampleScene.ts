@@ -2,6 +2,7 @@ import type { SceneElement } from "./types";
 import { measureText } from "../rendering/measureText";
 
 const base = {
+  groupId: null,
   rotation: 0,
   strokeColor: "#1f2937",
   strokeWidth: 2.5,

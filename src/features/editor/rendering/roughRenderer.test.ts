@@ -15,6 +15,7 @@ describe("renderText", () => {
     const element: TextElement = {
       id: "multiline-text",
       type: "text",
+      groupId: null,
       x: 0,
       y: 0,
       rotation: 0,

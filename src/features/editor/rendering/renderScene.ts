@@ -10,7 +10,9 @@ import {
   type ResizeHandle,
 } from "../interaction/resize";
 import { getRotationHandleGeometry } from "../interaction/rotation";
-import type { Point, SceneElement } from "../model/types";
+import type { Bounds, Point, SceneElement } from "../model/types";
+import { drawGrid } from "../interaction/grid";
+import type { SmartGuide } from "../interaction/smartGuides";
 import { getElementPopScale } from "./animation";
 import {
   renderArrow,
@@ -36,6 +38,11 @@ export interface RenderSceneOptions {
   currentTime?: number;
   recentlyCreatedAt?: ReadonlyMap<string, number>;
   cursorIndicator?: CursorIndicator;
+  grid?: {
+    bounds: Bounds;
+    size: number;
+  };
+  smartGuides?: readonly SmartGuide[];
 }
 
 export interface CursorIndicator {
@@ -73,6 +80,15 @@ export function renderScene(
   const roughCanvas = getRoughCanvas(context.canvas);
   const selectedIds = new Set(selectedElementIds);
   const showSelection = options.showSelection ?? true;
+
+  if (options.grid) {
+    drawGrid(
+      context,
+      options.grid.bounds,
+      viewportZoom,
+      options.grid.size,
+    );
+  }
 
   const renderElement = (element: SceneElement) => {
     context.save();
@@ -257,6 +273,27 @@ export function renderScene(
     context.setLineDash([6 / viewportZoom, 4 / viewportZoom]);
     context.fillRect(x, y, width, height);
     context.strokeRect(x, y, width, height);
+    context.restore();
+  }
+
+  if (options.smartGuides && options.smartGuides.length > 0) {
+    context.save();
+    context.strokeStyle = "#0ea5e9";
+    context.lineWidth = 1 / viewportZoom;
+    context.setLineDash([6 / viewportZoom, 4 / viewportZoom]);
+    context.beginPath();
+
+    for (const guide of options.smartGuides) {
+      if (guide.orientation === "vertical") {
+        context.moveTo(guide.position, guide.start);
+        context.lineTo(guide.position, guide.end);
+      } else {
+        context.moveTo(guide.start, guide.position);
+        context.lineTo(guide.end, guide.position);
+      }
+    }
+
+    context.stroke();
     context.restore();
   }
 

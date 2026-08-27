@@ -129,6 +129,12 @@ export function Menu({
   const setMarqueeSelectionMode = useEditorPreferencesStore(
     (state) => state.setMarqueeSelectionMode,
   );
+  const showGrid = useEditorPreferencesStore((state) => state.showGrid);
+  const snapToGrid = useEditorPreferencesStore((state) => state.snapToGrid);
+  const setShowGrid = useEditorPreferencesStore((state) => state.setShowGrid);
+  const setSnapToGrid = useEditorPreferencesStore(
+    (state) => state.setSnapToGrid,
+  );
   const elements = useWhiteboardStore((state) => state.elements);
   const boards = useWhiteboardStore((state) => state.boards);
   const currentBoardId = useWhiteboardStore((state) => state.currentBoardId);
@@ -842,6 +848,30 @@ export function Menu({
                     </button>
                   ))}
                 </div>
+              </div>
+              <ActionMenuDivider />
+              <div className="space-y-1 px-2 py-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Grade
+                </p>
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                  <span>Mostrar grade</span>
+                  <input
+                    type="checkbox"
+                    checked={showGrid}
+                    onChange={(event) => setShowGrid(event.target.checked)}
+                    className="h-4 w-4 accent-blue-600"
+                  />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                  <span>Encaixar na grade</span>
+                  <input
+                    type="checkbox"
+                    checked={snapToGrid}
+                    onChange={(event) => setSnapToGrid(event.target.checked)}
+                    className="h-4 w-4 accent-blue-600"
+                  />
+                </label>
               </div>
             </ActionMenuDisclosure>
             <input

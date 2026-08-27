@@ -81,7 +81,11 @@ describe("share link", () => {
 
   it("preserva imagem embutida no link compartilhável", async () => {
     vi.stubGlobal("window", { location: { hash: "" } });
-    const { cornerStyle: _cornerStyle, ...imageBase } = exampleElements[1];
+    const rectangle = exampleElements[1] as Extract<
+      (typeof exampleElements)[number],
+      { type: "rectangle" }
+    >;
+    const { cornerStyle: _cornerStyle, ...imageBase } = rectangle;
     const scene = {
       type: "whiteboard-scene" as const,
       version: 1 as const,
@@ -105,7 +109,11 @@ describe("share link", () => {
 
   it("preserva diamante no link compartilhável", async () => {
     vi.stubGlobal("window", { location: { hash: "" } });
-    const { cornerStyle: _cornerStyle, ...diamondBase } = exampleElements[1];
+    const rectangle = exampleElements[1] as Extract<
+      (typeof exampleElements)[number],
+      { type: "rectangle" }
+    >;
+    const { cornerStyle: _cornerStyle, ...diamondBase } = rectangle;
     const scene = {
       type: "whiteboard-scene" as const,
       version: 1 as const,
@@ -114,6 +122,7 @@ describe("share link", () => {
           ...diamondBase,
           type: "diamond" as const,
           id: "shared-diamond",
+          groupId: "group-1",
           width: 120,
           height: 80,
         },

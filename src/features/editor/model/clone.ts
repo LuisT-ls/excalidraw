@@ -8,6 +8,7 @@ export function cloneSceneElement(element: SceneElement): SceneElement {
   if (element.type === "line" || element.type === "arrow") {
     return {
       ...element,
+      groupId: element.groupId ?? null,
       points: element.points.map((point) => ({ ...point })) as [
         Point,
         Point,
@@ -19,11 +20,12 @@ export function cloneSceneElement(element: SceneElement): SceneElement {
   if (element.type === "freehand") {
     return {
       ...element,
+      groupId: element.groupId ?? null,
       points: element.points.map((point) => ({ ...point })),
     };
   }
 
-  return { ...element };
+  return { ...element, groupId: element.groupId ?? null };
 }
 
 export function cloneSceneElements(elements: SceneElement[]): SceneElement[] {

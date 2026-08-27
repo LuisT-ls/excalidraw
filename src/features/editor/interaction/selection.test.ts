@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { exampleElements } from "../model/exampleScene";
 import {
   getElementsIntersectingBounds,
+  getGroupMemberIds,
   normalizeSelectionBounds,
   toggleSelectedElement,
+  toggleSelectedElements,
 } from "./selection";
 import type { SceneElement } from "../model/types";
 
@@ -31,11 +33,35 @@ describe("selection helpers", () => {
     expect(toggleSelectedElement(["a", "b"], "a")).toEqual(["b"]);
   });
 
+  it("expande o clique para todos os membros de um grupo", () => {
+    const groupedElements = [
+      { ...exampleElements[0], id: "group-a", groupId: "group-1" },
+      { ...exampleElements[1], id: "group-b", groupId: "group-1" },
+      { ...exampleElements[2], id: "solo", groupId: null },
+    ];
+
+    expect(getGroupMemberIds(groupedElements, "group-a")).toEqual([
+      "group-a",
+      "group-b",
+    ]);
+    expect(getGroupMemberIds(groupedElements, "solo")).toEqual(["solo"]);
+    expect(toggleSelectedElements(["solo"], ["group-a", "group-b"])).toEqual([
+      "solo",
+      "group-a",
+      "group-b",
+    ]);
+    expect(toggleSelectedElements(
+      ["solo", "group-a", "group-b"],
+      ["group-a", "group-b"],
+    )).toEqual(["solo"]);
+  });
+
   it("suporta Wrap exigindo que o bbox fique inteiro dentro da área", () => {
     const elements: SceneElement[] = [
       {
         id: "inside",
         type: "rectangle",
+        groupId: null,
         x: 0,
         y: 0,
         width: 10,
@@ -54,6 +80,7 @@ describe("selection helpers", () => {
       {
         id: "partial",
         type: "rectangle",
+        groupId: null,
         x: 8,
         y: 8,
         width: 10,

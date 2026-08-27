@@ -10,6 +10,10 @@ export function generateElementId(): string {
     .slice(2)}`;
 }
 
+export function generateGroupId(): string {
+  return `group-${generateElementId()}`;
+}
+
 export function generateSeed(): number {
   if (typeof globalThis.crypto?.getRandomValues === "function") {
     const values = new Uint32Array(1);

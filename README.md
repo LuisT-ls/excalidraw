@@ -16,6 +16,8 @@ Garranchos é um whiteboard online inspirado no Excalidraw, criado como projeto 
 - Formas geométricas renderizadas com `rough.js`; traços livres suavizados com `perfect-freehand`.
 - Seleção única, seleção múltipla por marquee nos modos **Overlap** e **Wrap**, e `Shift`+clique.
 - Mover elementos individualmente ou em conjunto.
+- Guias inteligentes de alinhamento durante o movimento, com encaixe por bordas e centros.
+- Agrupar/desagrupar elementos com `Ctrl/Cmd+G` e `Ctrl/Cmd+Shift+G`.
 - Resize por handles: cantos para formas, imagens, freehand e texto; pontas para linhas e setas.
 - Rotação por handle para elementos selecionados individualmente, com `Shift` para incrementos de 15°.
 - Texto de uma linha na criação, com suporte a conteúdo multilinha importado ou editado.
@@ -29,6 +31,8 @@ Garranchos é um whiteboard online inspirado no Excalidraw, criado como projeto 
 - Painel de propriedades lateral no desktop e bottom sheet em telas estreitas.
 - Camadas: trazer para frente, mandar para trás, avançar e recuar uma camada.
 - Undo/redo por snapshots, com atalho de teclado e limite de histórico por sessão.
+- Grade visual configurável e encaixe opcional em uma malha fixa de 20 unidades.
+- Zoom pelo teclado (`Ctrl/Cmd +`, `Ctrl/Cmd -` e `Ctrl/Cmd+0`).
 
 ### Arquivos, clipboard e persistência
 
@@ -102,8 +106,6 @@ src/
 ## Limitações e próximos passos
 
 - Não há colaboração em tempo real, backend, contas ou sincronização entre dispositivos/abas.
-- Agrupamento/desagrupamento ainda não está implementado.
-- Guias inteligentes de alinhamento e grade com encaixe ainda não estão implementadas.
 - A ferramenta de texto confirma com `Enter`; criar novas quebras de linha durante a digitação ainda é uma evolução futura.
 - Imagens são embutidas como dados na cena para simplificar a persistência local; o código limita cada arquivo a 10 MB e ajusta seu maior lado para até 300 unidades de mundo.
 - O código inclui Pointer Events, pinch/pan e suporte ao teclado virtual, mas a validação manual em dispositivos físicos depende do ambiente de teste.

@@ -3,6 +3,7 @@ import { getEraserHitIds } from "./eraser";
 import type { RectangleElement } from "../model/types";
 
 const base = {
+  groupId: null,
   rotation: 0,
   strokeColor: "#111827",
   strokeWidth: 2,

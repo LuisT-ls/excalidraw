@@ -47,6 +47,7 @@ export interface Viewport {
 export interface ElementBase {
   id: ElementId;
   type: ElementType;
+  groupId: string | null;
   x: number;
   y: number;
   rotation: number;

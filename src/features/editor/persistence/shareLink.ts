@@ -141,6 +141,14 @@ function unpackPoints(value: unknown): Array<{ x: number; y: number }> | null {
   return points;
 }
 
+function appendGroupId(values: unknown[], groupId: string | null): unknown[] {
+  return groupId ? [...values, groupId] : values;
+}
+
+function unpackGroupId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 /**
  * Shares use a compact transport representation, while the decoded result is
  * still the regular PersistedScene. Short keys, enum codes and flat point
@@ -171,38 +179,53 @@ function packElement(
 
   switch (element.type) {
     case "rectangle":
-      return [
+      return appendGroupId([
         ...base,
         CORNER_STYLE_CODES[element.cornerStyle],
         number(element.width),
         number(element.height),
-      ];
+      ], element.groupId);
     case "diamond":
-      return [...base, number(element.width), number(element.height)];
+      return appendGroupId(
+        [...base, number(element.width), number(element.height)],
+        element.groupId,
+      );
     case "ellipse":
-      return [...base, number(element.width), number(element.height)];
+      return appendGroupId(
+        [...base, number(element.width), number(element.height)],
+        element.groupId,
+      );
     case "image":
-      return [
-        ...base,
-        number(element.width),
-        number(element.height),
-        element.src,
-      ];
+      return appendGroupId(
+        [
+          ...base,
+          number(element.width),
+          number(element.height),
+          element.src,
+        ],
+        element.groupId,
+      );
     case "line":
     case "arrow":
     case "freehand":
-      return [...base, packPoints(element.points, roundNumbers)];
+      return appendGroupId(
+        [...base, packPoints(element.points, roundNumbers)],
+        element.groupId,
+      );
     case "text":
-      return [
-        ...base,
-        element.text,
-        number(element.width),
-        number(element.height),
-        number(element.fontSize),
-        element.fontFamily,
-        FONT_WEIGHT_CODES[element.fontWeight],
-        TEXT_ALIGN_CODES[element.textAlign],
-      ];
+      return appendGroupId(
+        [
+          ...base,
+          element.text,
+          number(element.width),
+          number(element.height),
+          number(element.fontSize),
+          element.fontFamily,
+          FONT_WEIGHT_CODES[element.fontWeight],
+          TEXT_ALIGN_CODES[element.textAlign],
+        ],
+        element.groupId,
+      );
   }
 }
 
@@ -253,6 +276,7 @@ function unpackElement(value: unknown): SceneElement | null {
   const base = {
     id,
     type,
+    groupId: null,
     x,
     y,
     rotation,
@@ -267,42 +291,50 @@ function unpackElement(value: unknown): SceneElement | null {
   };
 
   if (type === "rectangle") {
-    const [cornerStyleCode, width, height] = value.slice(13);
+    const [cornerStyleCode, width, height, groupId] = value.slice(13);
     const cornerStyle =
       isFiniteNumber(cornerStyleCode)
         ? CORNER_STYLES_BY_CODE[cornerStyleCode]
         : undefined;
 
     return cornerStyle && isFiniteNumber(width) && isFiniteNumber(height)
-      ? ({ ...base, type, cornerStyle, width, height } as RectangleElement)
+      ? ({
+          ...base,
+          type,
+          cornerStyle,
+          width,
+          height,
+          groupId: unpackGroupId(groupId),
+        } as RectangleElement)
       : null;
   }
 
   if (type === "ellipse") {
-    const [width, height] = value.slice(13);
+    const [width, height, groupId] = value.slice(13);
     return isFiniteNumber(width) && isFiniteNumber(height)
-      ? ({ ...base, type, width, height } as EllipseElement)
+      ? ({ ...base, type, width, height, groupId: unpackGroupId(groupId) } as EllipseElement)
       : null;
   }
 
   if (type === "diamond") {
-    const [width, height] = value.slice(13);
+    const [width, height, groupId] = value.slice(13);
     return isFiniteNumber(width) && isFiniteNumber(height)
-      ? ({ ...base, type, width, height } as DiamondElement)
+      ? ({ ...base, type, width, height, groupId: unpackGroupId(groupId) } as DiamondElement)
       : null;
   }
 
   if (type === "image") {
-    const [width, height, src] = value.slice(13);
+    const [width, height, src, groupId] = value.slice(13);
     return isFiniteNumber(width) &&
       isFiniteNumber(height) &&
       typeof src === "string"
-      ? ({ ...base, type, width, height, src } as ImageElement)
+      ? ({ ...base, type, width, height, src, groupId: unpackGroupId(groupId) } as ImageElement)
       : null;
   }
 
   if (type === "line" || type === "arrow" || type === "freehand") {
     const points = unpackPoints(value[13]);
+    const groupId = unpackGroupId(value[14]);
     if (!points || (type !== "freehand" && points.length < 2)) {
       return null;
     }
@@ -310,11 +342,12 @@ function unpackElement(value: unknown): SceneElement | null {
     return {
       ...base,
       type,
+      groupId,
       points,
     } as LineElement | ArrowElement | FreehandElement;
   }
 
-  const [text, width, height, fontSize, fontFamily, fontWeightCode, textAlignCode] =
+  const [text, width, height, fontSize, fontFamily, fontWeightCode, textAlignCode, groupId] =
     value.slice(13);
   const fontWeight =
     isFiniteNumber(fontWeightCode) ? FONT_WEIGHTS_BY_CODE[fontWeightCode] : undefined;
@@ -331,6 +364,7 @@ function unpackElement(value: unknown): SceneElement | null {
     ? ({
         ...base,
         type,
+        groupId: unpackGroupId(groupId),
         text,
         width,
         height,

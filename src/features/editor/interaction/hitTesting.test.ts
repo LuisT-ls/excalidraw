@@ -12,6 +12,7 @@ import type {
 } from "../model/types";
 
 const base = {
+  groupId: null,
   rotation: 0,
   strokeColor: "#000",
   strokeWidth: 2,

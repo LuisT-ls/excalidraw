@@ -57,6 +57,7 @@ export function createElementFromDrag(
   const base = {
     id,
     rotation: 0,
+    groupId: null,
     strokeColor: style.strokeColor,
     strokeWidth: style.strokeWidth,
     strokeStyle: style.strokeStyle ?? "solid",
@@ -113,6 +114,7 @@ export function createFreehandElement(
     x: origin.x,
     y: origin.y,
     rotation: 0,
+    groupId: null,
     strokeColor: style.strokeColor,
     strokeWidth: style.strokeWidth,
     strokeStyle: style.strokeStyle ?? "solid",

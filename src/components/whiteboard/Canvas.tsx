@@ -30,6 +30,17 @@ import {
   type TwoFingerFrame,
 } from "@/features/editor/interaction/twoFingerGesture";
 import {
+  GRID_SIZE_WORLD,
+  snapElementPositionToGrid,
+  snapMoveDeltaToGrid,
+  snapPointToGrid,
+} from "@/features/editor/interaction/grid";
+import {
+  calculateSmartGuides,
+  type SmartGuide,
+} from "@/features/editor/interaction/smartGuides";
+import { zoomAt, zoomByFactorAt } from "@/features/editor/interaction/zoom";
+import {
   createElementFromDrag,
   createFreehandElement,
   type DrawingTool,
@@ -85,6 +96,7 @@ import {
 } from "@/features/editor/interaction/laserTrail";
 import {
   generateElementId,
+  generateGroupId,
   generateSeed,
 } from "@/features/editor/model/ids";
 import { cloneSceneElement } from "@/features/editor/model/clone";
@@ -101,8 +113,9 @@ import {
 } from "@/components/ui/ActionMenu";
 import {
   getElementsIntersectingBounds,
+  getGroupMemberIds,
   normalizeSelectionBounds,
-  toggleSelectedElement,
+  toggleSelectedElements,
 } from "@/features/editor/interaction/selection";
 import {
   isDeletionKey,
@@ -132,6 +145,7 @@ const DUPLICATE_OFFSET_WORLD = 20;
 const FIT_PADDING_RATIO = 0.1;
 const DOUBLE_POINTER_WINDOW_MS = 300;
 const DOUBLE_POINTER_DISTANCE_PX = 10;
+const KEYBOARD_ZOOM_FACTOR = 1.1;
 
 let clipboardElements: SceneElement[] = [];
 
@@ -143,6 +157,25 @@ function isDrawingTool(tool: Tool): tool is ShapeDrawingTool {
     tool === "line" ||
     tool === "arrow"
   );
+}
+
+function getVisibleWorldBounds(
+  canvas: HTMLCanvasElement,
+  viewport: Viewport,
+) {
+  const rect = canvas.getBoundingClientRect();
+  const topLeft = screenToWorld({ x: 0, y: 0 }, viewport);
+  const bottomRight = screenToWorld(
+    { x: rect.width, y: rect.height },
+    viewport,
+  );
+
+  return {
+    x: topLeft.x,
+    y: topLeft.y,
+    width: bottomRight.x - topLeft.x,
+    height: bottomRight.y - topLeft.y,
+  };
 }
 
 interface DrawingInteraction {
@@ -274,6 +307,8 @@ export function Canvas({
   const marqueeSelectionMode = useEditorPreferencesStore(
     (state) => state.marqueeSelectionMode,
   );
+  const showGrid = useEditorPreferencesStore((state) => state.showGrid);
+  const snapToGrid = useEditorPreferencesStore((state) => state.snapToGrid);
   const elements = useWhiteboardStore((state) => state.elements);
   const selectedElementIds = useWhiteboardStore(
     (state) => state.selectedElementIds,
@@ -301,6 +336,10 @@ export function Canvas({
   );
   const setActiveTool = useWhiteboardStore((state) => state.setActiveTool);
   const setReadOnly = useWhiteboardStore((state) => state.setReadOnly);
+  const groupElements = useWhiteboardStore((state) => state.groupElements);
+  const ungroupElements = useWhiteboardStore(
+    (state) => state.ungroupElements,
+  );
   const updateElement = useWhiteboardStore((state) => state.updateElement);
   const addElement = useWhiteboardStore((state) => state.addElement);
   const removeElement = useWhiteboardStore((state) => state.removeElement);
@@ -334,6 +373,7 @@ export function Canvas({
   const isReadOnlyRef = useRef(isReadOnly);
   const styleRef = useRef(style);
   const recentlyCreatedElementsRef = useRef<Map<ElementId, number>>(new Map());
+  const smartGuidesRef = useRef<SmartGuide[]>([]);
   const cursorWorldPointRef = useRef<Point | null>(null);
   const laserTrailRef = useRef<LaserTrailPoint[]>([]);
   const laserRef = useRef<LaserInteraction | null>(null);
@@ -378,6 +418,8 @@ export function Canvas({
   );
   const [textInputOffsetY, setTextInputOffsetY] = useState(0);
   const marqueeSelectionModeRef = useRef(marqueeSelectionMode);
+  const showGridRef = useRef(showGrid);
+  const snapToGridRef = useRef(snapToGrid);
 
   elementsRef.current = elements;
   selectedElementIdsRef.current = selectedElementIds;
@@ -387,6 +429,8 @@ export function Canvas({
   isReadOnlyRef.current = isReadOnly;
   styleRef.current = style;
   marqueeSelectionModeRef.current = marqueeSelectionMode;
+  showGridRef.current = showGrid;
+  snapToGridRef.current = snapToGrid;
 
   const registerCreatedElement = (id: ElementId) => {
     recentlyCreatedElementsRef.current.set(id, performance.now());
@@ -625,6 +669,13 @@ export function Canvas({
           {
             currentTime: timestamp,
             recentlyCreatedAt: recentlyCreatedElementsRef.current,
+            grid: showGridRef.current
+              ? {
+                  bounds: getVisibleWorldBounds(canvas, viewport),
+                  size: GRID_SIZE_WORLD,
+                }
+              : undefined,
+            smartGuides: smartGuidesRef.current,
             cursorIndicator:
               cursorWorldPointRef.current &&
               (activeToolRef.current === "pencil" ||
@@ -754,6 +805,44 @@ export function Canvas({
       const isModifierPressed = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
 
+      if (isModifierPressed) {
+        const isZoomIn = event.key === "+" || event.key === "=" || event.code === "Equal";
+        const isZoomOut = event.key === "-" || event.code === "Minus";
+        const isZoomReset = event.key === "0" || event.code === "Digit0";
+
+        if (isZoomIn || isZoomOut || isZoomReset) {
+          event.preventDefault();
+          const canvas = canvasRef.current;
+
+          if (!canvas) {
+            return;
+          }
+
+          const rect = canvas.getBoundingClientRect();
+          const center = { x: rect.width / 2, y: rect.height / 2 };
+          const currentViewport = viewportRef.current;
+
+          if (viewportTransitionRef.current !== null) {
+            cancelAnimationFrame(viewportTransitionRef.current);
+            viewportTransitionRef.current = null;
+          }
+
+          const nextViewport = isZoomReset
+            ? zoomAt(currentViewport, center, 1, MIN_ZOOM, MAX_ZOOM)
+            : zoomByFactorAt(
+                currentViewport,
+                center,
+                isZoomIn ? KEYBOARD_ZOOM_FACTOR : 1 / KEYBOARD_ZOOM_FACTOR,
+                MIN_ZOOM,
+                MAX_ZOOM,
+              );
+
+          viewportRef.current = nextViewport;
+          setViewport(nextViewport);
+          return;
+        }
+      }
+
       if (isReadOnlyRef.current) {
         if (!isModifierPressed && !event.altKey && key === "h") {
           event.preventDefault();
@@ -810,14 +899,7 @@ export function Canvas({
         );
 
         if (selected.length > 0) {
-          const duplicates = selected.map((element) =>
-            duplicateSceneElement(
-              element,
-              generateElementId(),
-              generateSeed(),
-              DUPLICATE_OFFSET_WORLD,
-            ),
-          );
+          const duplicates = duplicateElements(selected, DUPLICATE_OFFSET_WORLD);
 
           commitHistoryEntry();
           for (const duplicate of duplicates) {
@@ -876,6 +958,36 @@ export function Canvas({
         return;
       }
 
+      if (isModifierPressed && key === "g") {
+        event.preventDefault();
+        const selectedIds = selectedElementIdsRef.current.filter((id) =>
+          elementsRef.current.some((element) => element.id === id),
+        );
+
+        if (event.shiftKey) {
+          const groupIds = new Set(
+            elementsRef.current
+              .filter((element) =>
+                selectedIds.includes(element.id) && element.groupId,
+              )
+              .map((element) => element.groupId as string),
+          );
+          const idsToUngroup = elementsRef.current
+            .filter((element) => element.groupId && groupIds.has(element.groupId))
+            .map((element) => element.id);
+
+          if (idsToUngroup.length > 0) {
+            commitHistoryEntry();
+            ungroupElements(idsToUngroup);
+          }
+        } else if (selectedIds.length >= 2) {
+          commitHistoryEntry();
+          groupElements(selectedIds, generateGroupId());
+        }
+
+        return;
+      }
+
       if (!isModifierPressed && !event.altKey) {
         const toolByKey: Record<string, Tool> = {
           v: "select",
@@ -920,12 +1032,15 @@ export function Canvas({
   }, [
     addElement,
     commitHistoryEntry,
+    groupElements,
     moveElementsToBack,
     moveElementsToFront,
     redo,
     setActiveTool,
     setSelectedElementIds,
+    setViewport,
     undo,
+    ungroupElements,
   ]);
 
   const getCanvasPoint = (event: {
@@ -1037,16 +1152,11 @@ export function Canvas({
       const interaction = interactionRef.current;
 
       if (!interaction.didDrag) {
-        const nextSelectedIds = interaction.hitElementId
-          ? interaction.shiftKey
-            ? toggleSelectedElement(
-                interaction.selectionBefore,
-                interaction.hitElementId,
-              )
-            : [interaction.hitElementId]
-          : interaction.shiftKey
-            ? interaction.selectionBefore
-            : [];
+        const nextSelectedIds = getSelectionAfterClick(
+          interaction.selectionBefore,
+          interaction.hitElementId,
+          interaction.shiftKey,
+        );
 
         selectedElementIdsRef.current = nextSelectedIds;
         setSelectedElementIds(nextSelectedIds);
@@ -1056,6 +1166,7 @@ export function Canvas({
     }
 
     lastSelectPointerDownRef.current = null;
+    smartGuidesRef.current = [];
 
     if (canvas.hasPointerCapture(pointerId)) {
       canvas.releasePointerCapture(pointerId);
@@ -1137,13 +1248,16 @@ export function Canvas({
     }
 
     const imageElements = assets.map((asset, index) =>
-      createImageElement(
-        asset,
-        {
-          x: center.x + index * DUPLICATE_OFFSET_WORLD,
-          y: center.y + index * DUPLICATE_OFFSET_WORLD,
-        },
-        styleRef.current,
+      snapElementPositionToGrid(
+        createImageElement(
+          asset,
+          {
+            x: center.x + index * DUPLICATE_OFFSET_WORLD,
+            y: center.y + index * DUPLICATE_OFFSET_WORLD,
+          },
+          styleRef.current,
+        ),
+        snapToGridRef.current,
       ),
     );
 
@@ -1227,6 +1341,57 @@ export function Canvas({
     return null;
   };
 
+  const getSelectionIdsForElement = (element: SceneElement): ElementId[] =>
+    element.groupId
+      ? getGroupMemberIds(elementsRef.current, element.id)
+      : [element.id];
+
+  const getSelectionAfterClick = (
+    selectionBefore: ElementId[],
+    hitElementId: ElementId | null,
+    shiftKey: boolean,
+  ): ElementId[] => {
+    if (!hitElementId) {
+      return shiftKey ? selectionBefore : [];
+    }
+
+    const hitElement = elementsRef.current.find(
+      (element) => element.id === hitElementId,
+    );
+    const hitIds = hitElement ? getSelectionIdsForElement(hitElement) : [hitElementId];
+
+    return shiftKey
+      ? toggleSelectedElements(selectionBefore, hitIds)
+      : hitIds;
+  };
+
+  const duplicateElements = (
+    sourceElements: SceneElement[],
+    offset: number | Point,
+  ): SceneElement[] => {
+    const duplicatedGroupIds = new Map<string, string>();
+
+    return sourceElements.map((element) => {
+      const duplicate = duplicateSceneElement(
+        element,
+        generateElementId(),
+        generateSeed(),
+        offset,
+      );
+      let groupId: string | null = null;
+
+      if (element.groupId) {
+        groupId = duplicatedGroupIds.get(element.groupId) ?? generateGroupId();
+        duplicatedGroupIds.set(element.groupId, groupId);
+      }
+
+      return snapElementPositionToGrid(
+        { ...duplicate, groupId },
+        snapToGridRef.current,
+      );
+    });
+  };
+
   const duplicateSelectedFromContext = () => {
     const selected = elementsRef.current.filter((element) =>
       selectedElementIdsRef.current.includes(element.id),
@@ -1236,14 +1401,7 @@ export function Canvas({
       return;
     }
 
-    const duplicates = selected.map((element) =>
-      duplicateSceneElement(
-        element,
-        generateElementId(),
-        generateSeed(),
-        DUPLICATE_OFFSET_WORLD,
-      ),
-    );
+    const duplicates = duplicateElements(selected, DUPLICATE_OFFSET_WORLD);
 
     commitHistoryEntry();
     for (const duplicate of duplicates) {
@@ -1270,14 +1428,7 @@ export function Canvas({
           y: worldPoint.y - clipboardBounds.y,
         }
       : { x: DUPLICATE_OFFSET_WORLD, y: DUPLICATE_OFFSET_WORLD };
-    const pasted = clipboardElements.map((element) =>
-      duplicateSceneElement(
-        element,
-        generateElementId(),
-        generateSeed(),
-        offset,
-      ),
-    );
+    const pasted = duplicateElements(clipboardElements, offset);
 
     commitHistoryEntry();
     for (const element of pasted) {
@@ -1378,8 +1529,9 @@ export function Canvas({
 
     if (hitElement) {
       if (!selectedElementIdsRef.current.includes(hitElement.id)) {
-        selectedElementIdsRef.current = [hitElement.id];
-        setSelectedElementIds([hitElement.id]);
+        const ids = getSelectionIdsForElement(hitElement);
+        selectedElementIdsRef.current = ids;
+        setSelectedElementIds(ids);
       }
       setContextMenu({ kind: "element", position: screenPoint, worldPoint });
       return;
@@ -1567,25 +1719,29 @@ export function Canvas({
       });
       setSelectedElementIds([editing.elementId]);
     } else if (!editing.elementId) {
-      const element: TextElement = {
-        id: generateElementId(),
-        type: "text",
-        x: editing.worldPoint.x,
-        y: editing.worldPoint.y,
-        rotation: 0,
-        strokeColor: editing.style.strokeColor,
-        strokeWidth: editing.style.strokeWidth,
-        strokeStyle: editing.style.strokeStyle,
-        fillColor: null,
-        fillStyle: "none",
-        opacity: editing.style.opacity,
-        seed: generateSeed(),
-        roughness: editing.style.roughness,
-        text: editing.value,
-        width: metrics.width,
-        height: metrics.height,
-        ...DEFAULT_TEXT_STYLE,
-      };
+      const element: TextElement = snapElementPositionToGrid(
+        {
+          id: generateElementId(),
+          type: "text",
+          groupId: null,
+          x: editing.worldPoint.x,
+          y: editing.worldPoint.y,
+          rotation: 0,
+          strokeColor: editing.style.strokeColor,
+          strokeWidth: editing.style.strokeWidth,
+          strokeStyle: editing.style.strokeStyle,
+          fillColor: null,
+          fillStyle: "none",
+          opacity: editing.style.opacity,
+          seed: generateSeed(),
+          roughness: editing.style.roughness,
+          text: editing.value,
+          width: metrics.width,
+          height: metrics.height,
+          ...DEFAULT_TEXT_STYLE,
+        },
+        snapToGridRef.current,
+      );
 
       addElement(element);
       registerCreatedElement(element.id);
@@ -1604,10 +1760,16 @@ export function Canvas({
     elementId: ElementId | null = null,
     editingStyle = style,
   ) => {
+    const nextWorldPoint =
+      !elementId && snapToGridRef.current ? snapPointToGrid(worldPoint) : worldPoint;
+    const nextScreenPoint =
+      !elementId && snapToGridRef.current
+        ? worldToScreen(nextWorldPoint, viewportRef.current)
+        : screenPoint;
     const editing: TextEditingState = {
       elementId,
-      worldPoint,
-      screenPoint,
+      worldPoint: nextWorldPoint,
+      screenPoint: nextScreenPoint,
       viewportZoom: viewportRef.current.zoom,
       value,
       style: editingStyle,
@@ -1863,6 +2025,7 @@ export function Canvas({
     }
 
     event.preventDefault();
+    smartGuidesRef.current = [];
     const screenPoint = getCanvasPoint(event);
     const worldPoint = screenToWorld(screenPoint, viewportRef.current);
     if (currentTool === "pencil" || currentTool === "eraser") {
@@ -1979,23 +2142,26 @@ export function Canvas({
       marqueeRef.current = null;
       const previewSeed = generateSeed();
       const points: Point[] = [{ x: 0, y: 0 }];
+      const drawingStartWorld = snapToGridRef.current
+        ? snapPointToGrid(worldPoint)
+        : worldPoint;
 
       interactionRef.current = null;
       drawingRef.current = {
         pointerId: event.pointerId,
         startScreenX: screenPoint.x,
         startScreenY: screenPoint.y,
-        startWorld: worldPoint,
+        startWorld: drawingStartWorld,
         tool: currentTool,
         style,
         previewSeed,
         points: currentTool === "pencil" ? points : [],
-        lastWorldPoint: worldPoint,
+        lastWorldPoint: drawingStartWorld,
       };
       draftElementRef.current =
         currentTool === "pencil"
           ? createFreehandElement(
-              worldPoint,
+              drawingStartWorld,
               points,
               style,
               "draft-preview",
@@ -2003,7 +2169,7 @@ export function Canvas({
             )
           : createElementFromDrag(
               currentTool,
-              worldPoint,
+              drawingStartWorld,
               worldPoint,
               style,
               "draft-preview",
@@ -2020,9 +2186,10 @@ export function Canvas({
 
     if (hitElement) {
       const selectionBefore = [...selectedElementIdsRef.current];
+      const hitSelectionIds = getSelectionIdsForElement(hitElement);
       const targetIds = selectionBefore.includes(hitElement.id)
-        ? selectionBefore
-        : [hitElement.id];
+        ? Array.from(new Set([...selectionBefore, ...hitSelectionIds]))
+        : hitSelectionIds;
       const initialPositions = Object.fromEntries(
         elementsRef.current
           .filter((element) => targetIds.includes(element.id))
@@ -2386,7 +2553,10 @@ export function Canvas({
       }
 
       if (!interaction.selectionBefore.includes(interaction.hitElementId ?? "")) {
-        selectedElementIdsRef.current = [interaction.hitElementId as ElementId];
+        // Ao começar a mover um grupo ainda não selecionado, a seleção visual
+        // também precisa acompanhar todos os membros, e não apenas o item
+        // usado como ponto de entrada do gesto.
+        selectedElementIdsRef.current = [...interaction.targetIds];
         setSelectedElementIds(selectedElementIdsRef.current);
       }
 
@@ -2394,16 +2564,46 @@ export function Canvas({
         screenPoint,
         viewportRef.current,
       );
-      const deltaX = currentWorldPoint.x - interaction.startWorld.x;
-      const deltaY = currentWorldPoint.y - interaction.startWorld.y;
+      const rawDelta = {
+        x: currentWorldPoint.x - interaction.startWorld.x,
+        y: currentWorldPoint.y - interaction.startWorld.y,
+      };
+      const anchorPosition =
+        interaction.initialPositions[interaction.hitElementId ?? ""] ??
+        interaction.initialPositions[interaction.targetIds[0]];
+      const gridDelta = snapToGridRef.current && anchorPosition
+        ? snapMoveDeltaToGrid(anchorPosition, rawDelta, GRID_SIZE_WORLD)
+        : rawDelta;
+      // As atualizações anteriores já moveram os elementos na store. Para
+      // calcular o próximo delta absoluto sem acumular o movimento duas vezes,
+      // guias devem partir dos bounds na posição inicial do gesto.
+      const elementsAtMoveStart = elementsRef.current.map((element) => {
+        const initialPosition = interaction.initialPositions[element.id];
+
+        return initialPosition
+          ? { ...element, ...initialPosition }
+          : element;
+      });
+      const canvas = canvasRef.current;
+      const guideResult = canvas
+        ? calculateSmartGuides(
+            elementsAtMoveStart,
+            interaction.targetIds,
+            gridDelta,
+            viewportRef.current.zoom,
+            getVisibleWorldBounds(canvas, viewportRef.current),
+          )
+        : { delta: gridDelta, guides: [] };
+
+      smartGuidesRef.current = guideResult.guides;
 
       for (const id of interaction.targetIds) {
         const initialPosition = interaction.initialPositions[id];
 
         if (initialPosition) {
           updateElement(id, {
-            x: initialPosition.x + deltaX,
-            y: initialPosition.y + deltaY,
+            x: initialPosition.x + guideResult.delta.x,
+            y: initialPosition.y + guideResult.delta.y,
           });
         }
       }
@@ -2560,7 +2760,8 @@ export function Canvas({
         }
       }
 
-    if (element) {
+      if (element) {
+        element = snapElementPositionToGrid(element, snapToGridRef.current);
         // A criação inteira é uma entrada: o preview nunca entra na store.
         commitHistoryEntry();
         addElement(element);
@@ -2616,21 +2817,18 @@ export function Canvas({
       interactionRef.current = null;
 
       if (!interaction.didDrag) {
-        const nextSelectedIds = interaction.hitElementId
-          ? interaction.shiftKey
-            ? toggleSelectedElement(
-                interaction.selectionBefore,
-                interaction.hitElementId,
-              )
-            : [interaction.hitElementId]
-          : interaction.shiftKey
-            ? interaction.selectionBefore
-            : [];
+        const nextSelectedIds = getSelectionAfterClick(
+          interaction.selectionBefore,
+          interaction.hitElementId,
+          interaction.shiftKey,
+        );
 
         selectedElementIdsRef.current = nextSelectedIds;
         setSelectedElementIds(nextSelectedIds);
       }
     }
+
+    smartGuidesRef.current = [];
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);

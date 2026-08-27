@@ -57,6 +57,8 @@ export interface WhiteboardState {
   moveElementsToBack: (ids: ElementId[]) => void;
   moveElementsForward: (ids: ElementId[]) => void;
   moveElementsBackward: (ids: ElementId[]) => void;
+  groupElements: (ids: ElementId[], groupId: string) => void;
+  ungroupElements: (ids: ElementId[]) => void;
   setViewport: (
     viewport: Viewport | ((current: Viewport) => Viewport),
   ) => void;
@@ -184,6 +186,37 @@ export const useWhiteboardStore = create<WhiteboardState>((set) => ({
     set((state) => ({
       elements: moveElementsByOneLayer(state.elements, ids, "backward"),
     })),
+  groupElements: (ids, groupId) =>
+    set((state) => {
+      const selectedIds = new Set(ids);
+
+      return {
+        elements: state.elements.map((element) =>
+          selectedIds.has(element.id) ? { ...element, groupId } : element,
+        ),
+      };
+    }),
+  ungroupElements: (ids) =>
+    set((state) => {
+      const selectedIds = new Set(ids);
+      const groupIds = new Set(
+        state.elements
+          .filter((element) => selectedIds.has(element.id) && element.groupId)
+          .map((element) => element.groupId as string),
+      );
+
+      if (groupIds.size === 0) {
+        return state;
+      }
+
+      return {
+        elements: state.elements.map((element) =>
+          element.groupId && groupIds.has(element.groupId)
+            ? { ...element, groupId: null }
+            : element,
+        ),
+      };
+    }),
   setViewport: (viewport) =>
     set((state) => ({
       viewport:
