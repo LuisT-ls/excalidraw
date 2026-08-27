@@ -33,6 +33,27 @@ describe("createElementFromDrag", () => {
     });
   });
 
+  it("cria um diamante com a mesma bounding box normalizada das formas", () => {
+    const element = createElementFromDrag(
+      "diamond",
+      { x: 200, y: 150 },
+      { x: 80, y: 40 },
+      style,
+      "diamond-1",
+      15,
+    );
+
+    expect(element).toMatchObject({
+      type: "diamond",
+      x: 80,
+      y: 40,
+      width: 120,
+      height: 110,
+      strokeColor: "#ef4444",
+      strokeWidth: 4,
+    });
+  });
+
   it("mantém linhas e setas na origem inicial com pontos locais", () => {
     const line = createElementFromDrag(
       "line",

@@ -9,6 +9,7 @@ import type {
   SceneElement,
   TextElement,
 } from "../model/types";
+import { getDiamondPoints } from "../model/geometry";
 
 export const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -136,6 +137,16 @@ function renderRoughElement(
           element.height / 2,
           element.width,
           element.height,
+          options,
+        ),
+      );
+      return;
+    case "diamond":
+      parent.appendChild(
+        roughRenderer.polygon(
+          getDiamondPoints(element.width, element.height).map(
+            ({ x, y }): [number, number] => [x, y],
+          ),
           options,
         ),
       );

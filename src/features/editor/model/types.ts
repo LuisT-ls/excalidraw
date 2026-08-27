@@ -2,6 +2,7 @@ export type ElementId = string;
 
 export type ElementType =
   | "rectangle"
+  | "diamond"
   | "ellipse"
   | "line"
   | "arrow"
@@ -13,6 +14,7 @@ export type Tool =
   | "select"
   | "hand"
   | "rectangle"
+  | "diamond"
   | "ellipse"
   | "line"
   | "arrow"
@@ -65,6 +67,12 @@ export interface RectangleElement extends ElementBase {
   height: number;
 }
 
+export interface DiamondElement extends ElementBase {
+  type: "diamond";
+  width: number;
+  height: number;
+}
+
 export interface EllipseElement extends ElementBase {
   type: "ellipse";
   width: number;
@@ -107,6 +115,7 @@ export interface ImageElement extends ElementBase {
 
 export type SceneElement =
   | RectangleElement
+  | DiamondElement
   | EllipseElement
   | LineElement
   | ArrowElement

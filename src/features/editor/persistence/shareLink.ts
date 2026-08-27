@@ -3,6 +3,7 @@ import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from
 import type {
   ArrowElement,
   CornerStyle,
+  DiamondElement,
   EllipseElement,
   ElementType,
   FillStyle,
@@ -32,6 +33,7 @@ interface CompactScenePayload {
 
 const ELEMENT_TYPE_CODES: Record<ElementType, string> = {
   rectangle: "r",
+  diamond: "d",
   ellipse: "e",
   line: "l",
   arrow: "a",
@@ -175,6 +177,8 @@ function packElement(
         number(element.width),
         number(element.height),
       ];
+    case "diamond":
+      return [...base, number(element.width), number(element.height)];
     case "ellipse":
       return [...base, number(element.width), number(element.height)];
     case "image":
@@ -278,6 +282,13 @@ function unpackElement(value: unknown): SceneElement | null {
     const [width, height] = value.slice(13);
     return isFiniteNumber(width) && isFiniteNumber(height)
       ? ({ ...base, type, width, height } as EllipseElement)
+      : null;
+  }
+
+  if (type === "diamond") {
+    const [width, height] = value.slice(13);
+    return isFiniteNumber(width) && isFiniteNumber(height)
+      ? ({ ...base, type, width, height } as DiamondElement)
       : null;
   }
 

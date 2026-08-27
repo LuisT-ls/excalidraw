@@ -3,6 +3,7 @@ import type rough from "roughjs/bin/rough";
 import type { Options } from "roughjs/bin/core";
 import type {
   ArrowElement,
+  DiamondElement,
   ElementBase,
   FreehandElement,
   LineElement,
@@ -11,6 +12,7 @@ import type {
   ImageElement,
   TextElement,
 } from "../model/types";
+import { getDiamondPoints } from "../model/geometry";
 import { getRoundedRectanglePath } from "./roundedRectangle";
 
 type RoughCanvas = ReturnType<typeof rough.canvas>;
@@ -106,6 +108,18 @@ export function renderEllipse(
     element.height / 2,
     element.width,
     element.height,
+    getRoughOptions(element),
+  );
+}
+
+export function renderDiamond(
+  roughCanvas: RoughCanvas,
+  element: DiamondElement,
+) {
+  roughCanvas.polygon(
+    getDiamondPoints(element.width, element.height).map(
+      ({ x, y }): [number, number] => [x, y],
+    ),
     getRoughOptions(element),
   );
 }

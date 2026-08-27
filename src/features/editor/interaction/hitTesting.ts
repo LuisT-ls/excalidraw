@@ -1,4 +1,5 @@
 import type { Bounds, Point, SceneElement } from "../model/types";
+import { getDiamondPoints } from "../model/geometry";
 
 const MIN_LINE_HIT_DISTANCE = 6;
 
@@ -86,6 +87,7 @@ export function localToWorldPoint(element: SceneElement, point: Point): Point {
 export function getLocalBounds(element: SceneElement): Bounds {
   switch (element.type) {
     case "rectangle":
+    case "diamond":
     case "ellipse":
       return {
         x: Math.min(0, element.width),
@@ -159,9 +161,35 @@ function pointNearSegments(
   return false;
 }
 
+function pointInConvexPolygon(point: Point, polygon: Point[]): boolean {
+  let hasPositiveCrossProduct = false;
+  let hasNegativeCrossProduct = false;
+
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index];
+    const next = polygon[(index + 1) % polygon.length];
+    const crossProduct =
+      (next.x - current.x) * (point.y - current.y) -
+      (next.y - current.y) * (point.x - current.x);
+
+    if (crossProduct > 0) {
+      hasPositiveCrossProduct = true;
+    } else if (crossProduct < 0) {
+      hasNegativeCrossProduct = true;
+    }
+
+    if (hasPositiveCrossProduct && hasNegativeCrossProduct) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function getBoundingBox(element: SceneElement): Bounds {
   switch (element.type) {
     case "rectangle":
+    case "diamond":
     case "ellipse": {
       const left = Math.min(0, element.width);
       const right = Math.max(0, element.width);
@@ -246,6 +274,13 @@ export function hitTestElement(element: SceneElement, point: Point): boolean {
       localPoint.x <= right &&
       localPoint.y >= top &&
       localPoint.y <= bottom
+    );
+  }
+
+  if (element.type === "diamond") {
+    return pointInConvexPolygon(
+      localPoint,
+      getDiamondPoints(element.width, element.height),
     );
   }
 

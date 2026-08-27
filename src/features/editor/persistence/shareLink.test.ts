@@ -103,6 +103,29 @@ describe("share link", () => {
     expect(await decodeSharedScene(encoded)).toEqual(scene);
   });
 
+  it("preserva diamante no link compartilhável", async () => {
+    vi.stubGlobal("window", { location: { hash: "" } });
+    const { cornerStyle: _cornerStyle, ...diamondBase } = exampleElements[1];
+    const scene = {
+      type: "whiteboard-scene" as const,
+      version: 1 as const,
+      elements: [
+        {
+          ...diamondBase,
+          type: "diamond" as const,
+          id: "shared-diamond",
+          width: 120,
+          height: 80,
+        },
+      ],
+      backgroundColor: "#ffffff",
+    };
+
+    const encoded = await encodeSharedScene(scene);
+
+    expect(await decodeSharedScene(encoded)).toEqual(scene);
+  });
+
   it("continua abrindo links gzip do formato anterior", async () => {
     vi.stubGlobal("window", { location: { hash: "" } });
     const scene = {

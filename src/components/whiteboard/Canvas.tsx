@@ -131,6 +131,7 @@ let clipboardElements: SceneElement[] = [];
 function isDrawingTool(tool: Tool): tool is ShapeDrawingTool {
   return (
     tool === "rectangle" ||
+    tool === "diamond" ||
     tool === "ellipse" ||
     tool === "line" ||
     tool === "arrow"
@@ -843,6 +844,7 @@ export function Canvas({
           v: "select",
           "1": "select",
           r: "rectangle",
+          d: "diamond",
           o: "ellipse",
           l: "line",
           a: "arrow",
@@ -1359,6 +1361,7 @@ export function Canvas({
 
   const isCornerResizeElement = (element: SceneElement) =>
     element.type === "rectangle" ||
+    element.type === "diamond" ||
     element.type === "ellipse" ||
     element.type === "freehand" ||
     element.type === "text" ||

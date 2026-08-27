@@ -1,5 +1,6 @@
 import type {
   ArrowElement,
+  DiamondElement,
   EllipseElement,
   FillStyle,
   FreehandElement,
@@ -8,7 +9,12 @@ import type {
   RectangleElement,
 } from "../model/types";
 
-export type ShapeDrawingTool = "rectangle" | "ellipse" | "line" | "arrow";
+export type ShapeDrawingTool =
+  | "rectangle"
+  | "diamond"
+  | "ellipse"
+  | "line"
+  | "arrow";
 export type DrawingTool = ShapeDrawingTool | "pencil";
 
 export interface ElementCreationStyle {
@@ -24,6 +30,7 @@ export interface ElementCreationStyle {
 
 type CreatedElement =
   | RectangleElement
+  | DiamondElement
   | EllipseElement
   | LineElement
   | ArrowElement;
@@ -60,8 +67,16 @@ export function createElementFromDrag(
     roughness: style.roughness ?? DEFAULT_ROUGHNESS,
   };
 
-  if (tool === "rectangle" || tool === "ellipse") {
+  if (tool === "rectangle" || tool === "diamond" || tool === "ellipse") {
     const bounds = normalizedBounds(start, end);
+
+    if (tool === "diamond") {
+      return {
+        ...base,
+        type: "diamond",
+        ...bounds,
+      };
+    }
 
     return {
       ...base,

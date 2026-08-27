@@ -2,6 +2,7 @@ import { DEFAULT_TEXT_STYLE } from "../model/exampleScene";
 import { generateElementId, generateSeed } from "../model/ids";
 import type {
   ArrowElement,
+  DiamondElement,
   EllipseElement,
   ElementBase,
   FreehandElement,
@@ -142,6 +143,15 @@ function convertRectangle(
   };
 }
 
+function convertDiamond(element: RawExcalidrawElement): DiamondElement {
+  return {
+    ...createBase(element),
+    type: "diamond",
+    width: numberOr(element.width, 0),
+    height: numberOr(element.height, 0),
+  };
+}
+
 function convertEllipse(element: RawExcalidrawElement): EllipseElement {
   return {
     ...createBase(element),
@@ -251,6 +261,9 @@ export function convertExcalidrawScene(
     switch (type) {
       case "rectangle":
         converted = convertRectangle(rawElement);
+        break;
+      case "diamond":
+        converted = convertDiamond(rawElement);
         break;
       case "ellipse":
         converted = convertEllipse(rawElement);

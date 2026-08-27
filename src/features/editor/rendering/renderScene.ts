@@ -14,6 +14,7 @@ import type { Point, SceneElement } from "../model/types";
 import { getElementPopScale } from "./animation";
 import {
   renderArrow,
+  renderDiamond,
   renderEllipse,
   renderFreehand,
   renderImage,
@@ -98,6 +99,9 @@ export function renderScene(
       case "rectangle":
         renderRectangle(roughCanvas, element);
         break;
+      case "diamond":
+        renderDiamond(roughCanvas, element);
+        break;
       case "ellipse":
         renderEllipse(roughCanvas, element);
         break;
@@ -141,6 +145,7 @@ export function renderScene(
     if (
       isSingleSelection &&
       (element.type === "rectangle" ||
+        element.type === "diamond" ||
         element.type === "ellipse" ||
         element.type === "freehand" ||
         element.type === "text" ||

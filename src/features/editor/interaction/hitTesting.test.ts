@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getBoundingBox, hitTestElement } from "./hitTesting";
 import type {
   ArrowElement,
+  DiamondElement,
   EllipseElement,
   FreehandElement,
   ImageElement,
@@ -116,6 +117,28 @@ describe("hitTestElement", () => {
 
     expect(hitTestElement(ellipse, { x: 70, y: 60 })).toBe(true);
     expect(hitTestElement(ellipse, { x: 20, y: 30 })).toBe(false);
+  });
+
+  it("testa diamante como polígono convexo e respeita rotação", () => {
+    const diamond: DiamondElement = {
+      ...base,
+      id: "diamond-hit",
+      type: "diamond",
+      x: 20,
+      y: 30,
+      width: 100,
+      height: 60,
+    };
+
+    expect(getBoundingBox(diamond)).toEqual({
+      x: 20,
+      y: 30,
+      width: 100,
+      height: 60,
+    });
+    expect(hitTestElement(diamond, { x: 70, y: 60 })).toBe(true);
+    expect(hitTestElement(diamond, { x: 25, y: 35 })).toBe(false);
+    expect(hitTestElement({ ...diamond, rotation: Math.PI / 2 }, { x: -10, y: 80 })).toBe(true);
   });
 
   it("acerta linha e seta perto do segmento, mas rejeita distância maior", () => {

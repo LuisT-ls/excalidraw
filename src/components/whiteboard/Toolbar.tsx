@@ -3,6 +3,7 @@
 import {
   ArrowRight,
   Circle,
+  Diamond,
   Eraser,
   Hand,
   Image as ImageIcon,
@@ -33,6 +34,7 @@ const TOOL_OPTIONS: Array<{
 }> = [
   { tool: "select", label: "Selecionar", shortcut: "V/1", icon: MousePointer2 },
   { tool: "rectangle", label: "Retângulo", shortcut: "R", icon: Square },
+  { tool: "diamond", label: "Diamante", shortcut: "D", icon: Diamond },
   { tool: "ellipse", label: "Elipse", shortcut: "O", icon: Circle },
   { tool: "line", label: "Linha", shortcut: "L", icon: Minus },
   { tool: "arrow", label: "Seta", shortcut: "A", icon: ArrowRight },

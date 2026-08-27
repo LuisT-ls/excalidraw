@@ -36,7 +36,11 @@ const activeColorButtonClass =
 type ElementPatch = Partial<SceneElement>;
 
 function isFillElement(element: SceneElement): boolean {
-  return element.type === "rectangle" || element.type === "ellipse";
+  return (
+    element.type === "rectangle" ||
+    element.type === "diamond" ||
+    element.type === "ellipse"
+  );
 }
 
 function supportsStrokeControls(element: SceneElement): boolean {

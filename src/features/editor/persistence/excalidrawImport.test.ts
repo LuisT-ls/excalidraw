@@ -141,21 +141,58 @@ describe("convertExcalidrawScene", () => {
     const result = convertExcalidrawScene({
       type: "excalidraw",
       elements: [
-        { type: "diamond" },
         { type: "image" },
         { type: "frame" },
-        { type: "diamond" },
         { type: "embeddable" },
       ],
     });
 
     expect(result.elements).toEqual([]);
     expect(result.skipped).toEqual([
-      { type: "diamond", count: 2 },
       { type: "image", count: 1 },
       { type: "frame", count: 1 },
       { type: "embeddable", count: 1 },
     ]);
+  });
+
+  it("converte diamond do Excalidraw para a forma local", () => {
+    const result = convertExcalidrawScene({
+      type: "excalidraw",
+      elements: [
+        {
+          type: "diamond",
+          x: 30,
+          y: 40,
+          width: 120,
+          height: 80,
+          angle: Math.PI / 6,
+          strokeColor: "#7c3aed",
+          strokeWidth: 4,
+          backgroundColor: "#ede9fe",
+          opacity: 75,
+          seed: 42,
+          roughness: 2,
+        },
+      ],
+    });
+
+    expect(result.elements).toHaveLength(1);
+    expect(result.elements[0]).toMatchObject({
+      type: "diamond",
+      x: 30,
+      y: 40,
+      width: 120,
+      height: 80,
+      rotation: Math.PI / 6,
+      strokeColor: "#7c3aed",
+      strokeWidth: 4,
+      fillColor: "#ede9fe",
+      fillStyle: "solid",
+      opacity: 0.75,
+      seed: 42,
+      roughness: 2,
+    });
+    expect(result.skipped).toEqual([]);
   });
 
   it("ignora elementos de desenho malformados e elementos deletados", () => {
