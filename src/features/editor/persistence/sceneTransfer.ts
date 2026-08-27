@@ -144,6 +144,16 @@ function createSceneSvg(
   return { element: svg };
 }
 
+function prepareSvgForPdf(svg: SVGSVGElement): void {
+  // O SVG puro usa dominant-baseline, que é entendido pelos navegadores.
+  // svg2pdf.js, porém, lê alignment-baseline e assume "alphabetic" quando
+  // esse atributo não existe. Repetimos a mesma baseline hanging apenas na
+  // cópia que será convertida, sem alterar o SVG baixado pelo usuário.
+  for (const text of svg.querySelectorAll("text")) {
+    text.setAttribute("alignment-baseline", "hanging");
+  }
+}
+
 export function exportSceneAsSvg(
   elements: SceneElement[],
   backgroundColor: string,
@@ -251,6 +261,7 @@ export async function exportSceneAsPdf(
       backgroundColor,
       exportBounds,
     );
+    prepareSvgForPdf(svg);
     const pdf = createPdfDocument(jsPDF, exportBounds);
 
     await svg2pdf(svg, pdf, {
