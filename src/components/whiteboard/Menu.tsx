@@ -560,7 +560,7 @@ export function Menu({
           <div
             role="menu"
             aria-label="Menu principal"
-            className="absolute left-0 top-12 z-30 max-h-[calc(100vh-5rem)] max-h-[calc(100dvh-5rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain touch-pan-y rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900 sm:w-80 sm:max-w-none"
+            className="absolute left-0 top-12 z-30 max-h-[calc(100vh-5rem)] max-h-[calc(100dvh-5rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain touch-pan-y rounded-xl border border-slate-200 bg-white p-2 shadow-xl transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900 sm:max-h-none sm:w-80 sm:max-w-none sm:overflow-visible"
           >
             <section className="mb-2 rounded-lg bg-slate-50 p-2 dark:bg-slate-800/70">
               <div className="mb-1 flex items-center justify-between px-1">
@@ -670,6 +670,7 @@ export function Menu({
               label="Arquivo"
               open={expandedSection === "file"}
               onToggle={() => toggleSection("file")}
+              desktopFlyout
             >
               <ActionMenuItem
                 onClick={() => importInputRef.current?.click()}
@@ -712,6 +713,7 @@ export function Menu({
               label="Visualização"
               open={expandedSection === "view"}
               onToggle={() => toggleSection("view")}
+              desktopFlyout
             >
               <ActionMenuItem
                 onClick={() => {
@@ -750,6 +752,7 @@ export function Menu({
               label="Preferências"
               open={expandedSection === "preferences"}
               onToggle={() => toggleSection("preferences")}
+              desktopFlyout
             >
               <div className="px-2 py-1">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
