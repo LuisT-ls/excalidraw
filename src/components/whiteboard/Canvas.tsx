@@ -78,6 +78,12 @@ import {
 import { loadSharedSceneFromLocation } from "@/features/editor/persistence/shareLink";
 import { getSceneBounds } from "@/features/editor/interaction/sceneBounds";
 import {
+  appendLaserTrailPoint,
+  drawLaserTrail,
+  pruneLaserTrail,
+  type LaserTrailPoint,
+} from "@/features/editor/interaction/laserTrail";
+import {
   generateElementId,
   generateSeed,
 } from "@/features/editor/model/ids";
@@ -114,6 +120,7 @@ import type {
 
 interface CanvasProps {
   backgroundColor?: string;
+  isPresentationMode?: boolean;
 }
 
 const MIN_ZOOM = 0.1;
@@ -183,6 +190,12 @@ interface MarqueeInteraction {
   startScreen: Point;
   currentScreen: Point;
   shiftKey: boolean;
+}
+
+interface LaserInteraction {
+  pointerId: number;
+  startScreen: Point;
+  didDrag: boolean;
 }
 
 interface MoveInteraction {
@@ -256,6 +269,7 @@ function freehandExtent(points: Point[]) {
 
 export function Canvas({
   backgroundColor: backgroundColorProp,
+  isPresentationMode = false,
 }: CanvasProps) {
   const marqueeSelectionMode = useEditorPreferencesStore(
     (state) => state.marqueeSelectionMode,
@@ -316,10 +330,13 @@ export function Canvas({
   const backgroundColorRef = useRef(backgroundColor);
   const viewportRef = useRef<Viewport>(viewport);
   const activeToolRef = useRef<Tool>(activeTool);
+  const isPresentationModeRef = useRef(isPresentationMode);
   const isReadOnlyRef = useRef(isReadOnly);
   const styleRef = useRef(style);
   const recentlyCreatedElementsRef = useRef<Map<ElementId, number>>(new Map());
   const cursorWorldPointRef = useRef<Point | null>(null);
+  const laserTrailRef = useRef<LaserTrailPoint[]>([]);
+  const laserRef = useRef<LaserInteraction | null>(null);
   const viewportTransitionRef = useRef<number | null>(null);
   const spacePressedRef = useRef(false);
   const panRef = useRef<{
@@ -366,6 +383,7 @@ export function Canvas({
   selectedElementIdsRef.current = selectedElementIds;
   backgroundColorRef.current = backgroundColor;
   activeToolRef.current = activeTool;
+  isPresentationModeRef.current = isPresentationMode;
   isReadOnlyRef.current = isReadOnly;
   styleRef.current = style;
   marqueeSelectionModeRef.current = marqueeSelectionMode;
@@ -379,6 +397,13 @@ export function Canvas({
       viewportRef.current = viewport;
     }
   }, [viewport]);
+
+  useEffect(() => {
+    if (!isPresentationMode) {
+      laserRef.current = null;
+      laserTrailRef.current = [];
+    }
+  }, [isPresentationMode]);
 
   useEffect(() => {
     let disposed = false;
@@ -555,6 +580,9 @@ export function Canvas({
         eraseParticlesRef.current,
         elapsedMs,
       );
+      laserTrailRef.current = isPresentationModeRef.current
+        ? pruneLaserTrail(laserTrailRef.current, timestamp)
+        : [];
 
       for (const [id, createdAt] of recentlyCreatedElementsRef.current) {
         if (timestamp - createdAt >= ELEMENT_POP_DURATION_MS) {
@@ -617,6 +645,15 @@ export function Canvas({
           },
         );
         drawEraseParticles(context, eraseParticlesRef.current);
+
+        if (isPresentationModeRef.current) {
+          drawLaserTrail(
+            context,
+            laserTrailRef.current,
+            timestamp,
+            devicePixelRatio,
+          );
+        }
       }
 
       animationFrameId = requestAnimationFrame(draw);
@@ -985,6 +1022,10 @@ export function Canvas({
     if (drawingRef.current?.pointerId === pointerId) {
       drawingRef.current = null;
       draftElementRef.current = null;
+    }
+
+    if (laserRef.current?.pointerId === pointerId) {
+      laserRef.current = null;
     }
 
     if (marqueeRef.current?.pointerId === pointerId) {
@@ -1792,6 +1833,27 @@ export function Canvas({
       return;
     }
 
+    if (
+      isPresentationModeRef.current &&
+      event.button === 0
+    ) {
+      lastSelectPointerDownRef.current = null;
+      interactionRef.current = null;
+      marqueeRef.current = null;
+      rotationRef.current = null;
+      resizeRef.current = null;
+      eraserRef.current = null;
+      drawingRef.current = null;
+      draftElementRef.current = null;
+      laserRef.current = {
+        pointerId: event.pointerId,
+        startScreen: getCanvasPoint(event),
+        didDrag: false,
+      };
+      capturePointer();
+      return;
+    }
+
     if (isReadOnlyRef.current) {
       return;
     }
@@ -2059,6 +2121,51 @@ export function Canvas({
         offsetX: pan.offsetX + point.x - pan.startX,
         offsetY: pan.offsetY + point.y - pan.startY,
       };
+      return;
+    }
+
+    const laser = laserRef.current;
+
+    if (laser && laser.pointerId === event.pointerId) {
+      const screenPoint = getCanvasPoint(event);
+
+      if (spacePressedRef.current) {
+        const viewport = viewportRef.current;
+        laserRef.current = null;
+        panRef.current = {
+          pointerId: event.pointerId,
+          startX: screenPoint.x,
+          startY: screenPoint.y,
+          offsetX: viewport.offsetX,
+          offsetY: viewport.offsetY,
+        };
+        return;
+      }
+
+      const screenDistance = Math.hypot(
+        screenPoint.x - laser.startScreen.x,
+        screenPoint.y - laser.startScreen.y,
+      );
+
+      if (!laser.didDrag) {
+        if (screenDistance < DRAG_THRESHOLD_PX) {
+          return;
+        }
+
+        laser.didDrag = true;
+        const timestamp = performance.now();
+        laserTrailRef.current = appendLaserTrailPoint(
+          laserTrailRef.current,
+          laser.startScreen,
+          timestamp,
+        );
+      }
+
+      laserTrailRef.current = appendLaserTrailPoint(
+        laserTrailRef.current,
+        screenPoint,
+        performance.now(),
+      );
       return;
     }
 
@@ -2372,6 +2479,20 @@ export function Canvas({
 
     if (cancelled) {
       event.preventDefault();
+    }
+
+    if (laserRef.current?.pointerId === event.pointerId) {
+      laserRef.current = null;
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+
+      if (activePointerIdRef.current === event.pointerId) {
+        activePointerIdRef.current = null;
+      }
+
+      return;
     }
 
     if (panRef.current?.pointerId === event.pointerId) {

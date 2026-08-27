@@ -158,7 +158,7 @@ export function WhiteboardApp() {
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-[#fafaf9] dark:bg-slate-950">
-      <Canvas />
+      <Canvas isPresentationMode={isPresentationMode} />
 
       {!hideUi && (
         <>
