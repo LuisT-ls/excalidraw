@@ -5,6 +5,7 @@ import {
   Circle,
   Eraser,
   Hand,
+  Image as ImageIcon,
   Lock,
   LockOpen,
   Maximize2,
@@ -136,6 +137,17 @@ export function Toolbar() {
             </button>
           ))}
         </div>
+
+        <button
+          type="button"
+          disabled={isReadOnly}
+          aria-label="Imagem"
+          title="Inserir imagem"
+          onClick={() => window.dispatchEvent(new Event("whiteboard:insert-image"))}
+          className={`${toolButtonClass} border-r border-slate-200 pr-2 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          <ImageIcon size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
 
         <button
           type="button"

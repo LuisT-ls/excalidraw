@@ -79,6 +79,30 @@ describe("share link", () => {
     });
   });
 
+  it("preserva imagem embutida no link compartilhável", async () => {
+    vi.stubGlobal("window", { location: { hash: "" } });
+    const { cornerStyle: _cornerStyle, ...imageBase } = exampleElements[1];
+    const scene = {
+      type: "whiteboard-scene" as const,
+      version: 1 as const,
+      elements: [
+        {
+          ...imageBase,
+          type: "image" as const,
+          id: "shared-image",
+          width: 120,
+          height: 80,
+          src: "data:image/png;base64,abc",
+        },
+      ],
+      backgroundColor: "#ffffff",
+    };
+
+    const encoded = await encodeSharedScene(scene);
+
+    expect(await decodeSharedScene(encoded)).toEqual(scene);
+  });
+
   it("continua abrindo links gzip do formato anterior", async () => {
     vi.stubGlobal("window", { location: { hash: "" } });
     const scene = {

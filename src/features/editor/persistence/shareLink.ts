@@ -7,6 +7,7 @@ import type {
   ElementType,
   FillStyle,
   FreehandElement,
+  ImageElement,
   LineElement,
   RectangleElement,
   SceneElement,
@@ -36,6 +37,7 @@ const ELEMENT_TYPE_CODES: Record<ElementType, string> = {
   arrow: "a",
   text: "t",
   freehand: "f",
+  image: "i",
 };
 
 const ELEMENT_TYPES_BY_CODE: Record<string, ElementType> = Object.fromEntries(
@@ -175,6 +177,13 @@ function packElement(
       ];
     case "ellipse":
       return [...base, number(element.width), number(element.height)];
+    case "image":
+      return [
+        ...base,
+        number(element.width),
+        number(element.height),
+        element.src,
+      ];
     case "line":
     case "arrow":
     case "freehand":
@@ -269,6 +278,15 @@ function unpackElement(value: unknown): SceneElement | null {
     const [width, height] = value.slice(13);
     return isFiniteNumber(width) && isFiniteNumber(height)
       ? ({ ...base, type, width, height } as EllipseElement)
+      : null;
+  }
+
+  if (type === "image") {
+    const [width, height, src] = value.slice(13);
+    return isFiniteNumber(width) &&
+      isFiniteNumber(height) &&
+      typeof src === "string"
+      ? ({ ...base, type, width, height, src } as ImageElement)
       : null;
   }
 

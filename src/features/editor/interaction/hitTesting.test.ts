@@ -4,6 +4,7 @@ import type {
   ArrowElement,
   EllipseElement,
   FreehandElement,
+  ImageElement,
   LineElement,
   RectangleElement,
   TextElement,
@@ -183,5 +184,22 @@ describe("hitTestElement", () => {
 
     expect(hitTestElement(text, { x: 80, y: 45 })).toBe(true);
     expect(hitTestElement(text, { x: 130, y: 70 })).toBe(false);
+  });
+
+  it("testa imagem como um retângulo respeitando rotação", () => {
+    const image: ImageElement = {
+      ...base,
+      id: "image-hit",
+      type: "image",
+      x: 100,
+      y: 100,
+      width: 80,
+      height: 40,
+      rotation: Math.PI / 2,
+      src: "data:image/png;base64,abc",
+    };
+
+    expect(hitTestElement(image, { x: 80, y: 140 })).toBe(true);
+    expect(hitTestElement(image, { x: 150, y: 130 })).toBe(false);
   });
 });

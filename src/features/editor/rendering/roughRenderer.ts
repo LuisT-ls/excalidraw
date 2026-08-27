@@ -8,6 +8,7 @@ import type {
   LineElement,
   RectangleElement,
   EllipseElement,
+  ImageElement,
   TextElement,
 } from "../model/types";
 import { getRoundedRectanglePath } from "./roundedRectangle";
@@ -107,6 +108,24 @@ export function renderEllipse(
     element.height,
     getRoughOptions(element),
   );
+}
+
+export function renderImage(
+  context: CanvasRenderingContext2D,
+  element: ImageElement,
+  image: HTMLImageElement | null,
+) {
+  if (image) {
+    context.drawImage(image, 0, 0, element.width, element.height);
+    return;
+  }
+
+  // O placeholder evita que uma imagem ainda carregando pareça um erro.
+  context.fillStyle = "rgba(148, 163, 184, 0.12)";
+  context.fillRect(0, 0, element.width, element.height);
+  context.strokeStyle = "rgba(100, 116, 139, 0.55)";
+  context.lineWidth = 1;
+  context.strokeRect(0, 0, element.width, element.height);
 }
 
 export function renderLine(roughCanvas: RoughCanvas, element: LineElement) {

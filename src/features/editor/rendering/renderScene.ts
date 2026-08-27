@@ -16,10 +16,12 @@ import {
   renderArrow,
   renderEllipse,
   renderFreehand,
+  renderImage,
   renderLine,
   renderRectangle,
   renderText,
 } from "./roughRenderer";
+import { getCachedImage } from "./imageCache";
 
 type RoughCanvas = ReturnType<typeof rough.canvas>;
 
@@ -111,6 +113,9 @@ export function renderScene(
       case "freehand":
         renderFreehand(context, element);
         break;
+      case "image":
+        renderImage(context, element, getCachedImage(element.src));
+        break;
     }
 
     context.restore();
@@ -138,7 +143,8 @@ export function renderScene(
       (element.type === "rectangle" ||
         element.type === "ellipse" ||
         element.type === "freehand" ||
-        element.type === "text")
+        element.type === "text" ||
+        element.type === "image")
     ) {
       const handleSize = 8 / viewportZoom;
       const halfHandleSize = handleSize / 2;

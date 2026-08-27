@@ -40,7 +40,7 @@ function isFillElement(element: SceneElement): boolean {
 }
 
 function supportsStrokeControls(element: SceneElement): boolean {
-  return element.type !== "text";
+  return element.type !== "text" && element.type !== "image";
 }
 
 function optionButtonClass(active: boolean): string {
@@ -104,9 +104,7 @@ export function PropertiesPanel() {
   }
 
   const allSupportFill = selectedElements.every(isFillElement);
-  const allSupportStrokeControls = selectedElements.every(
-    supportsStrokeControls,
-  );
+  const hasStrokeControls = selectedElements.some(supportsStrokeControls);
   const allAreRectangles = selectedElements.every(
     (element) => element.type === "rectangle",
   );
@@ -141,7 +139,11 @@ export function PropertiesPanel() {
   };
 
   const applyStrokeColor = (color: string) =>
-    applyElementPatch({ strokeColor: color }, { strokeColor: color });
+    applyElementPatch(
+      { strokeColor: color },
+      { strokeColor: color },
+      supportsStrokeControls,
+    );
 
   const applyStrokeWidth = (width: number) =>
     applyElementPatch(
@@ -259,6 +261,7 @@ export function PropertiesPanel() {
         </span>
       </div>
 
+      {hasStrokeControls && (
       <section aria-labelledby="properties-stroke-title">
         <h3
           id="properties-stroke-title"
@@ -289,6 +292,7 @@ export function PropertiesPanel() {
           ))}
         </div>
       </section>
+      )}
 
       {allSupportFill && (
         <section className="mt-4" aria-labelledby="properties-fill-title">
@@ -329,7 +333,7 @@ export function PropertiesPanel() {
         </section>
       )}
 
-      {allSupportStrokeControls && (
+      {hasStrokeControls && (
         <>
           <section className="mt-4" aria-labelledby="properties-width-title">
             <h3

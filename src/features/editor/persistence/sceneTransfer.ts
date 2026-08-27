@@ -1,4 +1,5 @@
 import { renderScene } from "../rendering/renderScene";
+import { preloadSceneImages } from "../rendering/imageCache";
 import {
   renderSvgScene,
   SVG_NAMESPACE,
@@ -52,6 +53,23 @@ export function exportSceneAsPng(
 
   const bounds = getSceneBounds(elements);
 
+  if (!bounds) {
+    return Promise.resolve();
+  }
+
+  // A renderização principal pode desenhar um placeholder enquanto a imagem
+  // carrega; no export, aguardamos os recursos para que o arquivo não saia
+  // incompleto.
+  return preloadSceneImages(elements).then(() => {
+    return exportSceneAsPngAfterImages(elements, backgroundColor, bounds);
+  });
+}
+
+function exportSceneAsPngAfterImages(
+  elements: SceneElement[],
+  backgroundColor: string,
+  bounds: ReturnType<typeof getSceneBounds>,
+): Promise<void> {
   if (!bounds) {
     return Promise.resolve();
   }

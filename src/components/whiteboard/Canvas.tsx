@@ -6,6 +6,8 @@ import {
   useRef,
   type PointerEvent as ReactPointerEvent,
   type MouseEvent as ReactMouseEvent,
+  type ChangeEvent,
+  type DragEvent as ReactDragEvent,
 } from "react";
 import {
   renderScene,
@@ -75,6 +77,11 @@ import {
 } from "@/features/editor/model/ids";
 import { cloneSceneElement } from "@/features/editor/model/clone";
 import { duplicateSceneElement } from "@/features/editor/interaction/elementActions";
+import {
+  createImageElement,
+  readImageFile,
+  type ImageAsset,
+} from "@/features/editor/interaction/image";
 import { ContextMenu } from "@/components/whiteboard/ContextMenu";
 import {
   ActionMenuDivider,
@@ -288,6 +295,7 @@ export function Canvas({
   const backgroundColor =
     backgroundColorProp ?? storeBackgroundColor ?? DEFAULT_BACKGROUND_COLOR;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const elementsRef = useRef(elements);
   const selectedElementIdsRef = useRef<ElementId[]>(selectedElementIds);
   const backgroundColorRef = useRef(backgroundColor);
@@ -770,29 +778,6 @@ export function Canvas({
         return;
       }
 
-      if (isModifierPressed && key === "v") {
-        event.preventDefault();
-
-        if (clipboardElements.length > 0) {
-          const pasted = clipboardElements.map((element) =>
-            duplicateSceneElement(
-              element,
-              generateElementId(),
-              generateSeed(),
-              DUPLICATE_OFFSET_WORLD,
-            ),
-          );
-
-          commitHistoryEntry();
-          for (const element of pasted) {
-            addElement(element);
-          }
-          setSelectedElementIds(pasted.map((element) => element.id));
-        }
-
-        return;
-      }
-
       if (isModifierPressed && key === "a") {
         event.preventDefault();
         const ids = elementsRef.current.map((element) => element.id);
@@ -896,6 +881,124 @@ export function Canvas({
     };
   };
 
+  const getVisibleCenterWorld = (): Point => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return { x: 0, y: 0 };
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    return screenToWorld(
+      { x: rect.width / 2, y: rect.height / 2 },
+      viewportRef.current,
+    );
+  };
+
+  const insertImageFiles = async (files: File[], center: Point) => {
+    if (isReadOnlyRef.current || files.length === 0) {
+      return;
+    }
+
+    const assets: ImageAsset[] = [];
+    const errors: string[] = [];
+
+    for (const file of files) {
+      try {
+        assets.push(await readImageFile(file));
+      } catch (error) {
+        errors.push(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível inserir a imagem.",
+        );
+      }
+    }
+
+    if (errors.length > 0) {
+      window.alert(errors[0]);
+    }
+
+    if (assets.length === 0) {
+      return;
+    }
+
+    const imageElements = assets.map((asset, index) =>
+      createImageElement(
+        asset,
+        {
+          x: center.x + index * DUPLICATE_OFFSET_WORLD,
+          y: center.y + index * DUPLICATE_OFFSET_WORLD,
+        },
+        styleRef.current,
+      ),
+    );
+
+    commitHistoryEntry();
+    for (const element of imageElements) {
+      addElement(element);
+      registerCreatedElement(element.id);
+    }
+    setSelectedElementIds(imageElements.map((element) => element.id));
+    setActiveTool("select");
+  };
+
+  useEffect(() => {
+    const handleInsertImageRequest = () => {
+      if (!isReadOnlyRef.current) {
+        imageInputRef.current?.click();
+      }
+    };
+
+    window.addEventListener("whiteboard:insert-image", handleInsertImageRequest);
+    return () => {
+      window.removeEventListener(
+        "whiteboard:insert-image",
+        handleInsertImageRequest,
+      );
+    };
+  }, []);
+
+  const handleImageInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (file) {
+      void insertImageFiles([file], getVisibleCenterWorld());
+    }
+  };
+
+  const handleCanvasDragOver = (event: ReactDragEvent<HTMLCanvasElement>) => {
+    if (
+      !isReadOnlyRef.current &&
+      Array.from(event.dataTransfer.items).some((item) =>
+        item.type.startsWith("image/"),
+      )
+    ) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const handleCanvasDrop = (event: ReactDragEvent<HTMLCanvasElement>) => {
+    if (isReadOnlyRef.current) {
+      return;
+    }
+
+    const imageFiles = Array.from(event.dataTransfer.files).filter((file) =>
+      file.type.startsWith("image/"),
+    );
+    if (imageFiles.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    const screenPoint = getCanvasPoint(event);
+    void insertImageFiles(
+      imageFiles,
+      screenToWorld(screenPoint, viewportRef.current),
+    );
+  };
+
   const findElementAtPoint = (point: Point) => {
     const currentElements = elementsRef.current;
 
@@ -968,6 +1071,40 @@ export function Canvas({
     }
     setSelectedElementIds(pasted.map((element) => element.id));
   };
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      if (isTextInputTarget(event.target) || isReadOnlyRef.current) {
+        return;
+      }
+
+      const imageItem = Array.from(event.clipboardData?.items ?? []).find(
+        (item) => item.type.startsWith("image/"),
+      );
+
+      if (imageItem) {
+        const file = imageItem.getAsFile();
+        if (file) {
+          event.preventDefault();
+          void insertImageFiles(
+            [file],
+            cursorWorldPointRef.current ?? getVisibleCenterWorld(),
+          );
+        }
+        return;
+      }
+
+      if (clipboardElements.length > 0) {
+        event.preventDefault();
+        pasteFromContext(
+          cursorWorldPointRef.current ?? getVisibleCenterWorld(),
+        );
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
 
   const deleteSelectedFromContext = () => {
     const selectedIds = selectedElementIdsRef.current.filter((id) =>
@@ -1053,7 +1190,8 @@ export function Canvas({
     element.type === "rectangle" ||
     element.type === "ellipse" ||
     element.type === "freehand" ||
-    element.type === "text";
+    element.type === "text" ||
+    element.type === "image";
 
   const findInteractionHandleAtScreenPoint = (
     screenPoint: Point,
@@ -2116,8 +2254,19 @@ export function Canvas({
           cursorWorldPointRef.current = null;
         }}
         onWheel={handleWheel}
+        onDragOver={handleCanvasDragOver}
+        onDrop={handleCanvasDrop}
         onContextMenu={handleContextMenu}
         aria-label="Quadro branco"
+      />
+
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageInputChange}
+        aria-label="Escolher imagem"
       />
 
       {contextMenu && (

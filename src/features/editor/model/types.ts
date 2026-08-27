@@ -6,7 +6,8 @@ export type ElementType =
   | "line"
   | "arrow"
   | "text"
-  | "freehand";
+  | "freehand"
+  | "image";
 
 export type Tool =
   | "select"
@@ -96,13 +97,22 @@ export interface FreehandElement extends ElementBase {
   points: Point[];
 }
 
+export interface ImageElement extends ElementBase {
+  type: "image";
+  width: number;
+  height: number;
+  /** Imagem embutida para manter a persistência local simples nesta etapa. */
+  src: string;
+}
+
 export type SceneElement =
   | RectangleElement
   | EllipseElement
   | LineElement
   | ArrowElement
   | TextElement
-  | FreehandElement;
+  | FreehandElement
+  | ImageElement;
 
 export interface Scene {
   type: "whiteboard-scene";

@@ -3,7 +3,12 @@ import rough from "roughjs/bin/rough";
 import type { RoughSVG } from "roughjs/bin/svg";
 import { getArrowHeadPoints, getRoughOptions, getStrokeLineDash } from "./roughRenderer";
 import { getRoundedRectanglePath } from "./roundedRectangle";
-import type { FreehandElement, SceneElement, TextElement } from "../model/types";
+import type {
+  FreehandElement,
+  ImageElement,
+  SceneElement,
+  TextElement,
+} from "../model/types";
 
 export const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -85,6 +90,16 @@ function renderText(parent: SVGGElement, element: TextElement) {
   parent.appendChild(text);
 }
 
+function renderImage(parent: SVGGElement, element: ImageElement) {
+  const image = document.createElementNS(SVG_NAMESPACE, "image");
+  setAttribute(image, "x", 0);
+  setAttribute(image, "y", 0);
+  setAttribute(image, "width", element.width);
+  setAttribute(image, "height", element.height);
+  image.setAttribute("href", element.src);
+  parent.appendChild(image);
+}
+
 function renderRoughElement(
   roughRenderer: SvgRoughRenderer,
   parent: SVGGElement,
@@ -158,6 +173,9 @@ function renderRoughElement(
       return;
     case "text":
       renderText(parent, element);
+      return;
+    case "image":
+      renderImage(parent, element);
   }
 }
 

@@ -99,6 +99,7 @@ export function getLocalBounds(element: SceneElement): Bounds {
     case "freehand":
       return boundsFromPoints(element.points);
 
+    case "image":
     case "text":
       return { x: 0, y: 0, width: element.width, height: element.height };
   }
@@ -186,6 +187,7 @@ export function getBoundingBox(element: SceneElement): Bounds {
       );
 
     case "text":
+    case "image":
       return transformedBounds(element, [
         { x: 0, y: 0 },
         { x: element.width, y: 0 },
@@ -200,6 +202,13 @@ export function hitTestElement(element: SceneElement, point: Point): boolean {
 
   if (element.type === "text") {
     return pointInBounds(point, bounds);
+  }
+
+  if (element.type === "image") {
+    return pointInBounds(point, bounds) && pointInBounds(
+      worldToLocalPoint(element, point),
+      { x: 0, y: 0, width: element.width, height: element.height },
+    );
   }
 
   if (
