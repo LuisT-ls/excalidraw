@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { MessageCircle, Pencil, Trash2, X } from "lucide-react";
 import { worldToScreen } from "@/features/editor/interaction/coordinates";
 import { generateCommentId } from "@/features/editor/model/ids";
@@ -10,6 +15,16 @@ import { useWhiteboardStore } from "@/features/editor/store/useWhiteboardStore";
 interface CommentsOverlayProps {
   draftPoint: Point | null;
   onDraftFinished: () => void;
+}
+
+const COMMENT_DRAG_THRESHOLD_PX = 3;
+
+interface CommentDragState {
+  commentId: string;
+  pointerId: number;
+  startScreenPoint: Point;
+  startWorldPoint: Point;
+  didDrag: boolean;
 }
 
 function getMarkerStyle(point: Point, viewport: Viewport) {
@@ -34,6 +49,9 @@ export function CommentsOverlay({
   const addComment = useWhiteboardStore((state) => state.addComment);
   const updateComment = useWhiteboardStore((state) => state.updateComment);
   const removeComment = useWhiteboardStore((state) => state.removeComment);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const commentDragRef = useRef<CommentDragState | null>(null);
+  const draggedCommentClickRef = useRef(false);
   const [openCommentId, setOpenCommentId] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState("");
@@ -62,6 +80,27 @@ export function CommentsOverlay({
       editingInputRef.current?.focus();
     }
   }, [editingCommentId]);
+
+  useEffect(() => {
+    if (!openCommentId) {
+      return;
+    }
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (overlayRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setOpenCommentId(null);
+      setEditingCommentId(null);
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [openCommentId]);
 
   const finishDraft = (shouldCommit: boolean) => {
     if (!draftPoint) {
@@ -122,8 +161,103 @@ export function CommentsOverlay({
     setEditingCommentId(null);
   };
 
+  const getOverlayPoint = (event: {
+    clientX: number;
+    clientY: number;
+  }): Point => {
+    const rect = overlayRef.current?.getBoundingClientRect();
+
+    return {
+      x: event.clientX - (rect?.left ?? 0),
+      y: event.clientY - (rect?.top ?? 0),
+    };
+  };
+
+  const handleCommentPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    comment: Comment,
+  ) => {
+    if (
+      isReadOnly ||
+      (event.pointerType === "mouse" && event.button !== 0)
+    ) {
+      return;
+    }
+
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    draggedCommentClickRef.current = false;
+    commentDragRef.current = {
+      commentId: comment.id,
+      pointerId: event.pointerId,
+      startScreenPoint: getOverlayPoint(event),
+      startWorldPoint: { x: comment.x, y: comment.y },
+      didDrag: false,
+    };
+  };
+
+  const handleCommentPointerMove = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    comment: Comment,
+  ) => {
+    const drag = commentDragRef.current;
+
+    if (
+      !drag ||
+      drag.pointerId !== event.pointerId ||
+      drag.commentId !== comment.id
+    ) {
+      return;
+    }
+
+    const currentPoint = getOverlayPoint(event);
+    const distance = Math.hypot(
+      currentPoint.x - drag.startScreenPoint.x,
+      currentPoint.y - drag.startScreenPoint.y,
+    );
+
+    if (!drag.didDrag && distance < COMMENT_DRAG_THRESHOLD_PX) {
+      return;
+    }
+
+    if (!drag.didDrag) {
+      drag.didDrag = true;
+      commitHistoryEntry();
+    }
+
+    const currentZoom = Math.max(viewport.zoom, 0.0001);
+    updateComment(comment.id, {
+      x:
+        drag.startWorldPoint.x +
+        (currentPoint.x - drag.startScreenPoint.x) / currentZoom,
+      y:
+        drag.startWorldPoint.y +
+        (currentPoint.y - drag.startScreenPoint.y) / currentZoom,
+    });
+  };
+
+  const handleCommentPointerUp = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    const drag = commentDragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    draggedCommentClickRef.current = drag.didDrag;
+    commentDragRef.current = null;
+  };
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 overflow-visible">
+    <div
+      ref={overlayRef}
+      className="pointer-events-none absolute inset-0 z-10 overflow-visible"
+    >
       {comments.map((comment) => {
         const isOpen = openCommentId === comment.id;
         const isEditing = editingCommentId === comment.id;
@@ -139,8 +273,20 @@ export function CommentsOverlay({
               aria-label={`Abrir comentário: ${comment.text}`}
               aria-expanded={isOpen}
               title="Abrir comentário"
+              onPointerDown={(event) =>
+                handleCommentPointerDown(event, comment)
+              }
+              onPointerMove={(event) =>
+                handleCommentPointerMove(event, comment)
+              }
+              onPointerUp={handleCommentPointerUp}
+              onPointerCancel={handleCommentPointerUp}
               onClick={(event) => {
                 event.stopPropagation();
+                if (draggedCommentClickRef.current) {
+                  draggedCommentClickRef.current = false;
+                  return;
+                }
                 setOpenCommentId((currentId) =>
                   currentId === comment.id ? null : comment.id,
                 );
@@ -155,6 +301,7 @@ export function CommentsOverlay({
               <div
                 role="dialog"
                 aria-label="Comentário"
+                onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
                 className="absolute left-5 top-5 z-30 w-56 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left shadow-xl transition-colors duration-200 dark:border-amber-700 dark:bg-amber-950/95"
               >
