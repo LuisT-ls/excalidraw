@@ -118,8 +118,8 @@ export function ActionMenuDisclosure({
   }, [open]);
 
   const flyoutContentClassName = desktopFlyout
-    ? `${contentClassName} sm:absolute sm:left-full sm:top-0 sm:z-50 sm:ml-2 sm:mt-0 sm:w-72 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-2 sm:shadow-xl sm:dark:border-slate-700 sm:dark:bg-slate-900`
-    : contentClassName;
+    ? `${contentClassName} max-h-[calc(100dvh-8rem)] max-h-[calc(100vh-8rem)] overflow-y-auto overscroll-contain touch-pan-y sm:absolute sm:left-full sm:top-0 sm:z-50 sm:ml-2 sm:mt-0 sm:max-h-[80vh] sm:w-72 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-2 sm:shadow-xl sm:dark:border-slate-700 sm:dark:bg-slate-900`
+    : `${contentClassName} max-h-[calc(100dvh-8rem)] max-h-[calc(100vh-8rem)] overflow-y-auto overscroll-contain touch-pan-y`;
 
   return (
     <div
